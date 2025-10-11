@@ -15,6 +15,8 @@ let selectedEmoji = '😀';
 let rainbowMode = false;
 let sparkleMode = false;
 let rainbowHue = 0;
+let selectedFont = 'Arial';
+let textCase = 'upper'; // 'upper' or 'lower'
 
 // Audio context for sound effects
 let audioContext = null;
@@ -182,6 +184,37 @@ brushSizeSlider.addEventListener('input', (e) => {
     brushSize = e.target.value;
     sizeDisplay.textContent = brushSize;
 });
+
+// Font selector
+const fontSelector = document.getElementById('font-selector');
+const fontPreview = document.getElementById('font-preview');
+fontSelector.addEventListener('change', (e) => {
+    initAudio();
+    playSound('click');
+    selectedFont = e.target.value;
+    fontPreview.style.fontFamily = selectedFont;
+    fontSelector.style.fontFamily = selectedFont;
+});
+
+// Case toggle buttons
+document.querySelectorAll('.case-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        textCase = btn.dataset.case;
+        updateFontPreview();
+    });
+});
+
+function updateFontPreview() {
+    if (textCase === 'upper') {
+        fontPreview.innerHTML = '<span style="font-weight: 700;">ABC</span> <span style="opacity: 0.5;">abc</span> 123';
+    } else {
+        fontPreview.innerHTML = '<span style="opacity: 0.5;">ABC</span> <span style="font-weight: 700;">abc</span> 123';
+    }
+}
 
 // Emoji stamps
 document.querySelectorAll('.emoji-btn').forEach(btn => {
@@ -431,10 +464,41 @@ function drawSpray(x, y) {
 
 function stampEmoji(x, y) {
     const size = brushSize * 10;
-    ctx.font = `${size}px Arial`;
+    
+    // Check if it's a text character (letter, number, or common punctuation)
+    const isTextCharacter = /^[A-Za-z0-9!?&@#$%*+\-=/]$/.test(selectedEmoji);
+    const isLetter = /^[A-Za-z]$/.test(selectedEmoji);
+    
+    // Apply case transformation to letters
+    let charToStamp = selectedEmoji;
+    if (isLetter) {
+        charToStamp = textCase === 'upper' ? selectedEmoji.toUpperCase() : selectedEmoji.toLowerCase();
+    }
+    
+    if (isTextCharacter) {
+        // Use selected font for text characters
+        ctx.font = `bold ${size}px "${selectedFont}", Arial, sans-serif`;
+    } else {
+        // Use default for emojis
+        ctx.font = `${size}px Arial`;
+    }
+    
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(selectedEmoji, x, y);
+    
+    // Apply current color to text characters
+    if (isTextCharacter) {
+        if (rainbowMode) {
+            ctx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+        } else {
+            ctx.fillStyle = currentColor;
+        }
+    } else {
+        // Emojis use default rendering
+        ctx.fillStyle = '#000000';
+    }
+    
+    ctx.fillText(charToStamp, x, y);
     
     // Fun bouncy effect
     let scale = 1.5;
@@ -553,6 +617,12 @@ function setViewportHeight() {
 window.addEventListener('resize', setViewportHeight);
 window.addEventListener('orientationchange', setViewportHeight);
 setViewportHeight();
+
+// Initialize font preview
+if (fontPreview) {
+    fontPreview.style.fontFamily = selectedFont;
+    updateFontPreview();
+}
 
 console.log('🎨 EmojiPix loaded! Have fun drawing!');
 

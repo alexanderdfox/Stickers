@@ -273,6 +273,114 @@ header p {
     text-align: center;
 }
 
+#font-selector {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    color: #495057;
+}
+
+#font-selector:hover {
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+#font-selector:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+}
+
+#font-selector option {
+    padding: 8px;
+}
+
+/* Show each font in its own style in the dropdown */
+#font-selector option[value="Arial"] { font-family: Arial; }
+#font-selector option[value="Helvetica"] { font-family: Helvetica; }
+#font-selector option[value="Times New Roman"] { font-family: "Times New Roman"; }
+#font-selector option[value="Georgia"] { font-family: Georgia; }
+#font-selector option[value="Courier New"] { font-family: "Courier New"; }
+#font-selector option[value="Verdana"] { font-family: Verdana; }
+#font-selector option[value="Trebuchet MS"] { font-family: "Trebuchet MS"; }
+#font-selector option[value="Impact"] { font-family: Impact; }
+#font-selector option[value="Comic Sans MS"] { font-family: "Comic Sans MS"; }
+#font-selector option[value="Brush Script MT"] { font-family: "Brush Script MT"; }
+#font-selector option[value="Lucida Console"] { font-family: "Lucida Console"; }
+#font-selector option[value="Monaco"] { font-family: Monaco; }
+#font-selector option[value="Palatino"] { font-family: Palatino; }
+#font-selector option[value="Garamond"] { font-family: Garamond; }
+#font-selector option[value="Bookman"] { font-family: Bookman; }
+#font-selector option[value="Avant Garde"] { font-family: "Avant Garde"; }
+#font-selector option[value="Copperplate"] { font-family: Copperplate; }
+#font-selector option[value="Papyrus"] { font-family: Papyrus; }
+#font-selector option[value="Luminari"] { font-family: Luminari; }
+#font-selector option[value="American Typewriter"] { font-family: "American Typewriter"; }
+
+.case-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.case-btn {
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.95em;
+    font-weight: 600;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    color: #495057;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.case-btn:hover {
+    transform: translateY(-1px);
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    background: #f8f9ff;
+}
+
+.case-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    transform: translateY(0);
+}
+
+.font-preview {
+    margin-top: 12px;
+    padding: 12px;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #667eea;
+    transition: all 0.2s ease;
+}
+
 .emoji-categories {
     max-height: 500px;
     overflow-y: auto;
@@ -314,6 +422,63 @@ header p {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    font-weight: 600;
+}
+
+/* Special styling for letter/number stamps */
+.emoji-btn[data-emoji="A"],
+.emoji-btn[data-emoji="B"],
+.emoji-btn[data-emoji="C"],
+.emoji-btn[data-emoji="D"],
+.emoji-btn[data-emoji="E"],
+.emoji-btn[data-emoji="F"],
+.emoji-btn[data-emoji="G"],
+.emoji-btn[data-emoji="H"],
+.emoji-btn[data-emoji="I"],
+.emoji-btn[data-emoji="J"],
+.emoji-btn[data-emoji="K"],
+.emoji-btn[data-emoji="L"],
+.emoji-btn[data-emoji="M"],
+.emoji-btn[data-emoji="N"],
+.emoji-btn[data-emoji="O"],
+.emoji-btn[data-emoji="P"],
+.emoji-btn[data-emoji="Q"],
+.emoji-btn[data-emoji="R"],
+.emoji-btn[data-emoji="S"],
+.emoji-btn[data-emoji="T"],
+.emoji-btn[data-emoji="U"],
+.emoji-btn[data-emoji="V"],
+.emoji-btn[data-emoji="W"],
+.emoji-btn[data-emoji="X"],
+.emoji-btn[data-emoji="Y"],
+.emoji-btn[data-emoji="Z"],
+.emoji-btn[data-emoji="0"],
+.emoji-btn[data-emoji="1"],
+.emoji-btn[data-emoji="2"],
+.emoji-btn[data-emoji="3"],
+.emoji-btn[data-emoji="4"],
+.emoji-btn[data-emoji="5"],
+.emoji-btn[data-emoji="6"],
+.emoji-btn[data-emoji="7"],
+.emoji-btn[data-emoji="8"],
+.emoji-btn[data-emoji="9"],
+.emoji-btn[data-emoji="!"],
+.emoji-btn[data-emoji="?"],
+.emoji-btn[data-emoji="&"],
+.emoji-btn[data-emoji="@"],
+.emoji-btn[data-emoji="#"],
+.emoji-btn[data-emoji="$"],
+.emoji-btn[data-emoji="%"],
+.emoji-btn[data-emoji="*"],
+.emoji-btn[data-emoji="+"],
+.emoji-btn[data-emoji="-"],
+.emoji-btn[data-emoji="="],
+.emoji-btn[data-emoji="/"] {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8eeff 100%);
+    color: #667eea;
+    font-weight: 700;
+    font-size: 1.4em;
 }
 
 .emoji-btn:hover {
