@@ -2,6 +2,17 @@
 
 A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patterns, and unleash your creativity! Built with HTML5 Canvas and vanilla JavaScript.
 
+## 🌟 Highlights
+
+- **📑 Professional Layer System** - Multi-layer support with opacity, visibility, and reordering
+- **🖱️ Dynamic Emoji Cursors** - See exactly what you'll stamp with real-time cursor preview
+- **🏁 800+ Stamps** - Including flags from 80+ countries
+- **🎨 Advanced Patterns** - 7 fill patterns with dual-color support
+- **🔤 20 Fonts** - Full typography support with case toggle
+- **📱 Mobile Optimized** - Touch-friendly interface for iOS and Android
+- **🔊 Sound Effects** - Kid Pix-style audio feedback
+- **✨ Special Effects** - Rainbow mode and sparkle effects
+
 ## ✨ Features
 
 ### 🖌️ Drawing Tools
@@ -46,9 +57,10 @@ All patterns work with circles, squares, and the fill tool!
 - **Case Toggle** - Switch between uppercase (ABC) and lowercase (abc)
 - **20 Fonts** - Arial, Times New Roman, Comic Sans MS, Impact, and more!
 - **Font Preview** - See your selected font before stamping
+- **Dynamic Cursor** - See exactly what emoji/character you'll stamp before clicking!
 
-#### 700+ Emoji Stamps
-Organized in 8 categories:
+#### 800+ Emoji Stamps
+Organized in 9 categories:
 - **😊 Smileys** - 90+ faces and expressions
 - **🐶 Animals** - 100+ animals, birds, and sea creatures
 - **🌸 Nature** - 68+ plants, weather, and celestial objects
@@ -57,6 +69,7 @@ Organized in 8 categories:
 - **🚗 Travel** - 84+ vehicles and landmarks
 - **🎈 Objects** - 133+ everyday items and tech
 - **❤️ Symbols** - 110+ hearts, signs, and icons
+- **🏁 Flags** - 80+ country flags and special flags (checkered, rainbow, pirate, etc.)
 
 ### ✂️ Selection & Clipboard
 
@@ -73,11 +86,40 @@ Organized in 8 categories:
 - **Live Preview** - See current size value
 - **Gradient Slider** - Beautiful purple gradient slider
 - Affects pencil width, eraser size, line thickness, shape borders, and stamp size
+- **Size-Matched Cursor** - Emoji stamp cursor scales with brush size
+
+### 📑 Layer Manager
+
+Professional multi-layer support for complex artwork:
+
+#### Layer Controls
+- **➕ Add Layer** - Create new transparent layers
+- **🗑️ Delete Layer** - Remove active layer (cannot delete last layer)
+- **📋 Duplicate Layer** - Clone the current layer with all content
+- **⬇️ Merge Down** - Merge active layer with the one below
+
+#### Layer Management
+- **Visual Thumbnails** - See preview of each layer's content
+- **Layer Visibility** - Toggle individual layers on/off (👁️ icon)
+- **Layer Reordering** - Use ▲▼ arrows to change layer stack order
+- **Rename Layers** - Double-click layer name to edit
+- **Active Layer Highlight** - Purple highlight shows which layer you're drawing on
+- **Opacity Control** - Adjust active layer opacity from 0-100%
+- **Collapsible Panel** - Click header to expand/collapse
+
+#### Layer Features
+- **Independent Drawing** - Each layer is a separate drawing surface
+- **Background Layer** - Starts with white background (Layer 1)
+- **Transparent Layers** - New layers are transparent for perfect blending
+- **Real-time Rendering** - See all layers combined as you draw
+- **Layer-Aware Tools** - All drawing tools work on the active layer
+- **Smart Save** - Save button merges all visible layers
+- **Layer-Specific Clear** - Clear button only affects active layer
 
 ### 💾 File Operations
 
-- **💾 Save as PNG** - Download your artwork with timestamped filename
-- **🗑️ Clear All** - Kid Pix-style animated clear (wipe-down effect)
+- **💾 Save as PNG** - Download your artwork with timestamped filename (merges all visible layers)
+- **🗑️ Clear Layer** - Kid Pix-style animated clear on active layer only (wipe-down effect)
 - **Confirmation Dialog** - Prevents accidental clearing
 
 ### 🔊 Sound Effects
@@ -158,17 +200,38 @@ All sounds are throttled and non-intrusive!
 3. Drag to endpoint
 4. Release to draw the line
 
+### Working with Layers
+1. Click ➕ to add a new layer
+2. Select a layer by clicking it in the layer panel
+3. Draw on the active layer (highlighted in purple)
+4. Toggle visibility with the 👁️ icon to see layers individually
+5. Adjust opacity slider for transparency effects
+6. Use ▲▼ to reorder layers
+7. Duplicate layers to create variations
+8. Merge down when you're happy with the result
+
+### Creating Complex Artwork
+1. Start with the background layer for your base
+2. Add a new layer for main subjects
+3. Add another layer for details or effects
+4. Use layer opacity to create shadows or highlights
+5. Toggle layer visibility to work on specific elements
+6. Merge layers as you finish sections
+7. Save when complete (all visible layers are combined)
+
 ## 🎨 Keyboard Shortcuts
 
 Currently, all functions are accessible via the toolbar interface. Keyboard shortcuts may be added in future versions.
 
 ## 📝 Technical Details
 
-- **Canvas Size**: 800x600 pixels
+- **Canvas Size**: 800x600 pixels per layer
 - **Color Depth**: 32-bit RGBA
+- **Layer System**: Multi-layer architecture with transparency and blending
+- **Dynamic Cursors**: Real-time emoji/character cursor generation
 - **Audio**: Web Audio API for sound synthesis
 - **Patterns**: Dynamic canvas pattern generation
-- **Performance**: Optimized for smooth 60fps drawing
+- **Performance**: Optimized for smooth 60fps drawing with multiple layers
 
 ## 🛠️ Built With
 
@@ -180,12 +243,18 @@ Currently, all functions are accessible via the toolbar interface. Keyboard shor
 ## 🎮 Kid Pix Inspiration
 
 This project is inspired by the classic Kid Pix drawing program, featuring:
-- Fun sound effects
-- Emoji stamps (instead of classic stamps)
-- Animated clear effect
-- Spray paint tool
-- Easy-to-use interface
-- Creative freedom!
+- Fun sound effects with Web Audio API
+- 800+ emoji stamps (instead of classic stamps)
+- Animated wipe-down clear effect
+- Spray paint tool with particle effects
+- Easy-to-use colorful interface
+- Modern enhancements:
+  - Professional layer system
+  - Dynamic emoji cursors
+  - Advanced pattern fills
+  - Mobile touch support
+  - 20 font choices
+- Creative freedom for all ages!
 
 ## 📄 License
 
