@@ -758,7 +758,6 @@ header p {
 #drawing-canvas {
     border: 1px solid #dee2e6;
     border-radius: 8px;
-    cursor: crosshair;
     background: white;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     transition: box-shadow 0.2s ease;

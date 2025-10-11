@@ -159,6 +159,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentTool = btn.dataset.tool;
+        updateCursor();
     });
 });
 
@@ -171,6 +172,7 @@ document.querySelectorAll('.color-btn').forEach(btn => {
         btn.classList.add('active');
         currentColor = btn.dataset.color;
         rainbowMode = false;
+        if (currentTool === 'stamp') updateCursor();
     });
 });
 
@@ -184,6 +186,7 @@ if (colorPicker && colorHex) {
         colorHex.textContent = e.target.value.toUpperCase();
         rainbowMode = false;
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+        if (currentTool === 'stamp') updateCursor();
     });
 }
 
@@ -193,6 +196,7 @@ const sizeDisplay = document.getElementById('size-display');
 brushSizeSlider.addEventListener('input', (e) => {
     brushSize = e.target.value;
     sizeDisplay.textContent = brushSize;
+    if (currentTool === 'stamp') updateCursor();
 });
 
 // Font selector
@@ -204,6 +208,7 @@ fontSelector.addEventListener('change', (e) => {
     selectedFont = e.target.value;
     fontPreview.style.fontFamily = selectedFont;
     fontSelector.style.fontFamily = selectedFont;
+    if (currentTool === 'stamp') updateCursor();
 });
 
 // Case toggle buttons
@@ -215,6 +220,7 @@ document.querySelectorAll('.case-btn').forEach(btn => {
         btn.classList.add('active');
         textCase = btn.dataset.case;
         updateFontPreview();
+        if (currentTool === 'stamp') updateCursor();
     });
 });
 
@@ -310,6 +316,7 @@ document.querySelectorAll('.emoji-btn').forEach(btn => {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('[data-tool="stamp"]').classList.add('active');
+        updateCursor();
     });
 });
 
@@ -323,6 +330,7 @@ document.querySelectorAll('.effect-btn').forEach(btn => {
             rainbowMode = !rainbowMode;
             sparkleMode = false;
             btn.style.opacity = rainbowMode ? '0.6' : '1';
+            if (currentTool === 'stamp') updateCursor();
         } else if (effect === 'sparkle') {
             sparkleMode = !sparkleMode;
             rainbowMode = false;
@@ -997,6 +1005,74 @@ function hexToRgb(hex) {
     } : { r: 0, g: 0, b: 0 };
 }
 
+// Function to update cursor based on tool and emoji
+function updateCursor() {
+    const cursorMap = {
+        'pencil': 'crosshair',
+        'eraser': 'cell',
+        'line': 'crosshair',
+        'circle': 'crosshair',
+        'square': 'crosshair',
+        'fill': 'cell',
+        'spray': 'crosshair',
+        'select-circle': 'crosshair',
+        'select-square': 'crosshair',
+        'paste': 'copy'
+    };
+    
+    if (currentTool === 'stamp') {
+        // Create a custom emoji cursor matching the actual stamp size
+        const actualSize = brushSize * 10; // Match the size in stampEmoji()
+        const cursorSize = Math.min(actualSize, 128); // Cap at 128px for cursor display
+        
+        const cursorCanvas = document.createElement('canvas');
+        cursorCanvas.width = cursorSize;
+        cursorCanvas.height = cursorSize;
+        const cursorCtx = cursorCanvas.getContext('2d');
+        
+        // Check if it's a text character
+        const isTextCharacter = /^[A-Za-z0-9!?&@#$%*+\-=/]$/.test(selectedEmoji);
+        const isLetter = /^[A-Za-z]$/.test(selectedEmoji);
+        
+        // Apply case transformation to letters
+        let charToDraw = selectedEmoji;
+        if (isLetter) {
+            charToDraw = textCase === 'upper' ? selectedEmoji.toUpperCase() : selectedEmoji.toLowerCase();
+        }
+        
+        // Set font based on character type - matching stampEmoji() function
+        if (isTextCharacter) {
+            cursorCtx.font = `bold ${cursorSize}px "${selectedFont}", Arial, sans-serif`;
+        } else {
+            cursorCtx.font = `${cursorSize}px Arial`;
+        }
+        
+        cursorCtx.textAlign = 'center';
+        cursorCtx.textBaseline = 'middle';
+        
+        // Apply color to text characters
+        if (isTextCharacter) {
+            if (rainbowMode) {
+                cursorCtx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+            } else {
+                cursorCtx.fillStyle = currentColor;
+            }
+        } else {
+            cursorCtx.fillStyle = '#000000';
+        }
+        
+        // Draw the emoji/character
+        cursorCtx.fillText(charToDraw, cursorSize / 2, cursorSize / 2);
+        
+        // Convert to data URL and set as cursor
+        const dataURL = cursorCanvas.toDataURL();
+        canvas.style.cursor = `url('${dataURL}') ${cursorSize / 2} ${cursorSize / 2}, auto`;
+    } else {
+        // Use standard cursor for other tools
+        canvas.style.cursor = cursorMap[currentTool] || 'crosshair';
+    }
+}
+
 // Initialize audio on first touch/click (iOS requirement)
 document.addEventListener('touchstart', function initAudioOnTouch() {
     initAudio();
@@ -1034,6 +1110,9 @@ if (fontPreview) {
     fontPreview.style.fontFamily = selectedFont;
     updateFontPreview();
 }
+
+// Initialize cursor
+updateCursor();
 
 console.log('🎨 EmojiPix loaded! Have fun drawing!');
 
