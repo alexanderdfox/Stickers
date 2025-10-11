@@ -6,6 +6,11 @@ const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 600;
 
+// Layer Management
+let layers = [];
+let activeLayerIndex = 0;
+let layerIdCounter = 0;
+
 // Initial settings
 let isDrawing = false;
 let currentTool = 'pencil';
@@ -147,9 +152,295 @@ function playChord(frequencies, duration = 0.3) {
     });
 }
 
-// Clear canvas to white
-ctx.fillStyle = 'white';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
+// Layer Management Functions
+function createLayer(name = null) {
+    const layerCanvas = document.createElement('canvas');
+    layerCanvas.width = canvas.width;
+    layerCanvas.height = canvas.height;
+    const layerCtx = layerCanvas.getContext('2d');
+    
+    // Initialize with transparent background
+    layerCtx.clearRect(0, 0, layerCanvas.width, layerCanvas.height);
+    
+    const layer = {
+        id: layerIdCounter++,
+        name: name || `Layer ${layerIdCounter}`,
+        canvas: layerCanvas,
+        ctx: layerCtx,
+        visible: true,
+        opacity: 1.0
+    };
+    
+    return layer;
+}
+
+function initializeLayers() {
+    // Create background layer with white background
+    const backgroundLayer = createLayer('Background');
+    backgroundLayer.ctx.fillStyle = 'white';
+    backgroundLayer.ctx.fillRect(0, 0, backgroundLayer.canvas.width, backgroundLayer.canvas.height);
+    layers.push(backgroundLayer);
+    
+    activeLayerIndex = 0;
+    renderCanvas();
+    updateLayersList();
+}
+
+function getActiveLayer() {
+    return layers[activeLayerIndex];
+}
+
+function getActiveContext() {
+    return layers[activeLayerIndex]?.ctx || ctx;
+}
+
+function renderCanvas() {
+    // Clear main canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Render all visible layers from bottom to top
+    for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (layer.visible) {
+            ctx.save();
+            ctx.globalAlpha = layer.opacity;
+            ctx.drawImage(layer.canvas, 0, 0);
+            ctx.restore();
+        }
+    }
+}
+
+function addLayer() {
+    initAudio();
+    playSound('click');
+    const newLayer = createLayer();
+    layers.unshift(newLayer); // Add to top
+    activeLayerIndex = 0;
+    renderCanvas();
+    updateLayersList();
+}
+
+function deleteLayer() {
+    if (layers.length <= 1) {
+        return; // Don't delete the last layer
+    }
+    
+    initAudio();
+    playSound('click');
+    layers.splice(activeLayerIndex, 1);
+    if (activeLayerIndex >= layers.length) {
+        activeLayerIndex = layers.length - 1;
+    }
+    renderCanvas();
+    updateLayersList();
+}
+
+function duplicateLayer() {
+    initAudio();
+    playSound('click');
+    const sourceLayer = layers[activeLayerIndex];
+    const newLayer = createLayer(`${sourceLayer.name} copy`);
+    newLayer.ctx.drawImage(sourceLayer.canvas, 0, 0);
+    newLayer.opacity = sourceLayer.opacity;
+    layers.splice(activeLayerIndex, 0, newLayer); // Insert above current
+    activeLayerIndex = activeLayerIndex; // Keep same index (which is now the new layer)
+    renderCanvas();
+    updateLayersList();
+}
+
+function mergeLayerDown() {
+    if (activeLayerIndex >= layers.length - 1) {
+        return; // Can't merge bottom layer
+    }
+    
+    initAudio();
+    playSound('click');
+    const currentLayer = layers[activeLayerIndex];
+    const belowLayer = layers[activeLayerIndex + 1];
+    
+    // Merge current layer into the one below
+    belowLayer.ctx.save();
+    belowLayer.ctx.globalAlpha = currentLayer.opacity;
+    belowLayer.ctx.drawImage(currentLayer.canvas, 0, 0);
+    belowLayer.ctx.restore();
+    
+    // Remove current layer
+    layers.splice(activeLayerIndex, 1);
+    // activeLayerIndex automatically points to the merged layer now
+    
+    renderCanvas();
+    updateLayersList();
+}
+
+function setActiveLayer(index) {
+    activeLayerIndex = index;
+    updateLayersList();
+    updateLayerOpacityControl();
+}
+
+function toggleLayerVisibility(index) {
+    initAudio();
+    playSound('click');
+    layers[index].visible = !layers[index].visible;
+    renderCanvas();
+    updateLayersList();
+}
+
+function moveLayer(fromIndex, toIndex) {
+    if (toIndex < 0 || toIndex >= layers.length) return;
+    
+    initAudio();
+    playSound('click');
+    const [layer] = layers.splice(fromIndex, 1);
+    layers.splice(toIndex, 0, layer);
+    
+    // Update active index if needed
+    if (fromIndex === activeLayerIndex) {
+        activeLayerIndex = toIndex;
+    } else if (fromIndex < activeLayerIndex && toIndex >= activeLayerIndex) {
+        activeLayerIndex--;
+    } else if (fromIndex > activeLayerIndex && toIndex <= activeLayerIndex) {
+        activeLayerIndex++;
+    }
+    
+    renderCanvas();
+    updateLayersList();
+}
+
+function setLayerOpacity(opacity) {
+    layers[activeLayerIndex].opacity = opacity;
+    renderCanvas();
+    updateThumbnail(activeLayerIndex);
+}
+
+function updateThumbnail(index) {
+    const layer = layers[index];
+    const thumbnailCanvas = document.createElement('canvas');
+    thumbnailCanvas.width = 40;
+    thumbnailCanvas.height = 30;
+    const thumbCtx = thumbnailCanvas.getContext('2d');
+    
+    // Draw white background
+    thumbCtx.fillStyle = 'white';
+    thumbCtx.fillRect(0, 0, 40, 30);
+    
+    // Draw layer content scaled down
+    thumbCtx.drawImage(layer.canvas, 0, 0, 40, 30);
+    
+    return thumbnailCanvas.toDataURL();
+}
+
+function updateLayersList() {
+    const layersList = document.getElementById('layers-list');
+    layersList.innerHTML = '';
+    
+    layers.forEach((layer, index) => {
+        const layerItem = document.createElement('div');
+        layerItem.className = 'layer-item' + (index === activeLayerIndex ? ' active' : '');
+        
+        const thumbnail = document.createElement('canvas');
+        thumbnail.className = 'layer-thumbnail';
+        thumbnail.width = 40;
+        thumbnail.height = 30;
+        const thumbCtx = thumbnail.getContext('2d');
+        thumbCtx.fillStyle = 'white';
+        thumbCtx.fillRect(0, 0, 40, 30);
+        thumbCtx.drawImage(layer.canvas, 0, 0, 40, 30);
+        
+        const layerInfo = document.createElement('div');
+        layerInfo.className = 'layer-info';
+        
+        const layerName = document.createElement('div');
+        layerName.className = 'layer-name';
+        layerName.textContent = layer.name;
+        layerName.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = layer.name;
+            input.addEventListener('blur', () => {
+                layer.name = input.value || layer.name;
+                updateLayersList();
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') input.blur();
+                if (e.key === 'Escape') {
+                    input.value = layer.name;
+                    input.blur();
+                }
+            });
+            layerName.innerHTML = '';
+            layerName.appendChild(input);
+            input.focus();
+            input.select();
+        });
+        
+        layerInfo.appendChild(layerName);
+        
+        const layerActions = document.createElement('div');
+        layerActions.className = 'layer-actions';
+        
+        const visibilityBtn = document.createElement('button');
+        visibilityBtn.className = 'layer-visibility-btn' + (layer.visible ? ' visible' : '');
+        visibilityBtn.textContent = layer.visible ? '👁️' : '👁️‍🗨️';
+        visibilityBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleLayerVisibility(index);
+        });
+        
+        const moveBtns = document.createElement('div');
+        moveBtns.className = 'layer-move-btns';
+        
+        const moveUpBtn = document.createElement('button');
+        moveUpBtn.className = 'layer-move-btn';
+        moveUpBtn.textContent = '▲';
+        moveUpBtn.disabled = index === 0;
+        moveUpBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            moveLayer(index, index - 1);
+        });
+        
+        const moveDownBtn = document.createElement('button');
+        moveDownBtn.className = 'layer-move-btn';
+        moveDownBtn.textContent = '▼';
+        moveDownBtn.disabled = index === layers.length - 1;
+        moveDownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            moveLayer(index, index + 1);
+        });
+        
+        moveBtns.appendChild(moveUpBtn);
+        moveBtns.appendChild(moveDownBtn);
+        
+        layerActions.appendChild(visibilityBtn);
+        layerActions.appendChild(moveBtns);
+        
+        layerItem.appendChild(thumbnail);
+        layerItem.appendChild(layerInfo);
+        layerItem.appendChild(layerActions);
+        
+        layerItem.addEventListener('click', () => {
+            setActiveLayer(index);
+        });
+        
+        layersList.appendChild(layerItem);
+    });
+    
+    // Update button states
+    document.getElementById('delete-layer-btn').disabled = layers.length <= 1;
+    document.getElementById('merge-down-btn').disabled = activeLayerIndex >= layers.length - 1;
+}
+
+function updateLayerOpacityControl() {
+    const layer = layers[activeLayerIndex];
+    const opacitySlider = document.getElementById('layer-opacity');
+    const opacityDisplay = document.getElementById('opacity-display');
+    opacitySlider.value = layer.opacity * 100;
+    opacityDisplay.textContent = Math.round(layer.opacity * 100) + '%';
+}
+
+// Initialize layers
+initializeLayers();
 
 // Tool buttons
 document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -339,18 +630,56 @@ document.querySelectorAll('.effect-btn').forEach(btn => {
     });
 });
 
-// Save button
+// Layer control event listeners
+document.getElementById('add-layer-btn').addEventListener('click', addLayer);
+document.getElementById('delete-layer-btn').addEventListener('click', deleteLayer);
+document.getElementById('duplicate-layer-btn').addEventListener('click', duplicateLayer);
+document.getElementById('merge-down-btn').addEventListener('click', mergeLayerDown);
+
+// Layer panel toggle
+document.getElementById('layer-toggle').addEventListener('click', () => {
+    initAudio();
+    playSound('click');
+    const panel = document.querySelector('.layer-panel');
+    panel.classList.toggle('collapsed');
+});
+
+// Layer opacity control
+document.getElementById('layer-opacity').addEventListener('input', (e) => {
+    const opacity = e.target.value / 100;
+    setLayerOpacity(opacity);
+    document.getElementById('opacity-display').textContent = e.target.value + '%';
+});
+
+// Save button - merge all layers
 document.getElementById('save-btn').addEventListener('click', () => {
     initAudio();
     playSound('save');
+    
+    // Create a temporary canvas to merge all layers
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Draw all visible layers
+    for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (layer.visible) {
+            tempCtx.save();
+            tempCtx.globalAlpha = layer.opacity;
+            tempCtx.drawImage(layer.canvas, 0, 0);
+            tempCtx.restore();
+        }
+    }
     
     // Create a temporary link element
     const link = document.createElement('a');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     link.download = `emojipix-${timestamp}.png`;
     
-    // Convert canvas to PNG data URL
-    link.href = canvas.toDataURL('image/png');
+    // Convert merged canvas to PNG data URL
+    link.href = tempCanvas.toDataURL('image/png');
     
     // Trigger download
     link.click();
@@ -362,7 +691,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
 // Clear button
 document.getElementById('clear-btn').addEventListener('click', () => {
     initAudio();
-    if (confirm('🎨 Clear your masterpiece?')) {
+    if (confirm('🎨 Clear active layer?')) {
         playSound('clear');
         // Fun Kid Pix-style clear animation
         clearCanvasWithAnimation();
@@ -370,15 +699,17 @@ document.getElementById('clear-btn').addEventListener('click', () => {
 });
 
 function clearCanvasWithAnimation() {
+    const activeCtx = getActiveContext();
     let y = 0;
     const clearInterval = setInterval(() => {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, y, canvas.width, 20);
+        activeCtx.clearRect(0, y, canvas.width, 20);
+        renderCanvas();
         y += 20;
         if (y >= canvas.height) {
             clearInterval(clearInterval);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            activeCtx.clearRect(0, 0, canvas.width, canvas.height);
+            renderCanvas();
+            updateLayersList();
         }
     }, 20);
 }
@@ -515,28 +846,37 @@ function stopDrawing(e) {
     }
     
     isDrawing = false;
-    ctx.beginPath();
+    const activeCtx = getActiveContext();
+    activeCtx.beginPath();
+    
+    // Update layer thumbnail and render
+    renderCanvas();
+    updateLayersList();
 }
 
 let lastSoundTime = 0;
 const soundThrottle = 50; // milliseconds between sounds
 
 function drawPencil(x, y) {
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = brushSize;
+    const activeCtx = getActiveContext();
+    activeCtx.lineCap = 'round';
+    activeCtx.lineJoin = 'round';
+    activeCtx.lineWidth = brushSize;
     
     if (rainbowMode) {
         rainbowHue = (rainbowHue + 2) % 360;
-        ctx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
     } else {
-        ctx.strokeStyle = currentColor;
+        activeCtx.strokeStyle = currentColor;
     }
     
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    activeCtx.lineTo(x, y);
+    activeCtx.stroke();
+    activeCtx.beginPath();
+    activeCtx.moveTo(x, y);
+    
+    // Render canvas continuously while drawing
+    renderCanvas();
     
     // Play sound occasionally
     const now = Date.now();
@@ -551,15 +891,21 @@ function drawPencil(x, y) {
 }
 
 function drawEraser(x, y) {
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = brushSize * 2;
-    ctx.strokeStyle = 'white';
+    const activeCtx = getActiveContext();
+    activeCtx.lineCap = 'round';
+    activeCtx.lineJoin = 'round';
+    activeCtx.lineWidth = brushSize * 2;
+    activeCtx.globalCompositeOperation = 'destination-out';
     
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    activeCtx.lineTo(x, y);
+    activeCtx.stroke();
+    activeCtx.beginPath();
+    activeCtx.moveTo(x, y);
+    
+    activeCtx.globalCompositeOperation = 'source-over';
+    
+    // Render canvas continuously while drawing
+    renderCanvas();
     
     // Play sound occasionally
     const now = Date.now();
@@ -570,6 +916,7 @@ function drawEraser(x, y) {
 }
 
 function drawSpray(x, y) {
+    const activeCtx = getActiveContext();
     const density = brushSize * 2;
     const radius = brushSize * 3;
     
@@ -579,13 +926,16 @@ function drawSpray(x, y) {
         
         if (rainbowMode) {
             rainbowHue = (rainbowHue + 1) % 360;
-            ctx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+            activeCtx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
         } else {
-            ctx.fillStyle = currentColor;
+            activeCtx.fillStyle = currentColor;
         }
         
-        ctx.fillRect(x + offsetX, y + offsetY, 2, 2);
+        activeCtx.fillRect(x + offsetX, y + offsetY, 2, 2);
     }
+    
+    // Render canvas continuously while drawing
+    renderCanvas();
     
     // Play sound occasionally
     const now = Date.now();
@@ -600,6 +950,7 @@ function drawSpray(x, y) {
 }
 
 function stampEmoji(x, y) {
+    const activeCtx = getActiveContext();
     const size = brushSize * 10;
     
     // Check if it's a text character (letter, number, or common punctuation)
@@ -614,28 +965,32 @@ function stampEmoji(x, y) {
     
     if (isTextCharacter) {
         // Use selected font for text characters
-        ctx.font = `bold ${size}px "${selectedFont}", Arial, sans-serif`;
+        activeCtx.font = `bold ${size}px "${selectedFont}", Arial, sans-serif`;
     } else {
         // Use default for emojis
-        ctx.font = `${size}px Arial`;
+        activeCtx.font = `${size}px Arial`;
     }
     
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    activeCtx.textAlign = 'center';
+    activeCtx.textBaseline = 'middle';
     
     // Apply current color to text characters
     if (isTextCharacter) {
         if (rainbowMode) {
-            ctx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+            activeCtx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
         } else {
-            ctx.fillStyle = currentColor;
+            activeCtx.fillStyle = currentColor;
         }
     } else {
         // Emojis use default rendering
-        ctx.fillStyle = '#000000';
+        activeCtx.fillStyle = '#000000';
     }
     
-    ctx.fillText(charToStamp, x, y);
+    activeCtx.fillText(charToStamp, x, y);
+    
+    // Render after stamping
+    renderCanvas();
+    updateLayersList();
     
     // Fun bouncy effect
     let scale = 1.5;
@@ -648,6 +1003,7 @@ function stampEmoji(x, y) {
 }
 
 function addSparkles(x, y) {
+    const activeCtx = getActiveContext();
     const sparkleCount = 3;
     const sparkleRadius = brushSize * 2;
     
@@ -656,15 +1012,15 @@ function addSparkles(x, y) {
         const sparkleY = y + (Math.random() - 0.5) * sparkleRadius;
         const sparkleSize = Math.random() * 3 + 1;
         
-        ctx.fillStyle = '#FFFF00';
-        ctx.beginPath();
-        ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
-        ctx.fill();
+        activeCtx.fillStyle = '#FFFF00';
+        activeCtx.beginPath();
+        activeCtx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+        activeCtx.fill();
         
         // Draw star points
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(sparkleX - sparkleSize/2, sparkleY, sparkleSize, 1);
-        ctx.fillRect(sparkleX, sparkleY - sparkleSize/2, 1, sparkleSize);
+        activeCtx.fillStyle = '#FFFFFF';
+        activeCtx.fillRect(sparkleX - sparkleSize/2, sparkleY, sparkleSize, 1);
+        activeCtx.fillRect(sparkleX, sparkleY - sparkleSize/2, 1, sparkleSize);
     }
 }
 
@@ -737,70 +1093,83 @@ function createPattern() {
             break;
     }
     
-    return ctx.createPattern(patternCanvas, 'repeat');
+    const activeCtx = getActiveContext();
+    return activeCtx.createPattern(patternCanvas, 'repeat');
 }
 
 function drawCircle(startX, startY, endX, endY) {
+    const activeCtx = getActiveContext();
     const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
     
-    ctx.beginPath();
-    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+    activeCtx.beginPath();
+    activeCtx.arc(startX, startY, radius, 0, Math.PI * 2);
     
     const fillStyle = createPattern();
     if (fillStyle !== null) {
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
+        activeCtx.fillStyle = fillStyle;
+        activeCtx.fill();
     }
     
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = Math.max(brushSize / 2, 2);
-    ctx.stroke();
+    activeCtx.strokeStyle = currentColor;
+    activeCtx.lineWidth = Math.max(brushSize / 2, 2);
+    activeCtx.stroke();
     
     if (sparkleMode) {
         addSparkles(startX, startY);
     }
+    
+    renderCanvas();
+    updateLayersList();
 }
 
 function drawSquare(startX, startY, endX, endY) {
+    const activeCtx = getActiveContext();
     const width = endX - startX;
     const height = endY - startY;
     
-    ctx.beginPath();
-    ctx.rect(startX, startY, width, height);
+    activeCtx.beginPath();
+    activeCtx.rect(startX, startY, width, height);
     
     const fillStyle = createPattern();
     if (fillStyle !== null) {
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
+        activeCtx.fillStyle = fillStyle;
+        activeCtx.fill();
     }
     
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = Math.max(brushSize / 2, 2);
-    ctx.stroke();
+    activeCtx.strokeStyle = currentColor;
+    activeCtx.lineWidth = Math.max(brushSize / 2, 2);
+    activeCtx.stroke();
     
     if (sparkleMode) {
         addSparkles(startX + width/2, startY + height/2);
     }
+    
+    renderCanvas();
+    updateLayersList();
 }
 
 function drawLine(startX, startY, endX, endY) {
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
+    const activeCtx = getActiveContext();
+    activeCtx.beginPath();
+    activeCtx.moveTo(startX, startY);
+    activeCtx.lineTo(endX, endY);
     
     if (rainbowMode) {
-        ctx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
     } else {
-        ctx.strokeStyle = currentColor;
+        activeCtx.strokeStyle = currentColor;
     }
     
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.stroke();
+    activeCtx.lineWidth = brushSize;
+    activeCtx.lineCap = 'round';
+    activeCtx.stroke();
     
     if (sparkleMode) {
         addSparkles((startX + endX) / 2, (startY + endY) / 2);
     }
+    
+    renderCanvas();
+    updateLayersList();
 }
 
 function selectCircle(startX, startY, endX, endY) {
@@ -907,7 +1276,8 @@ function pasteClipboard(x, y) {
 }
 
 function floodFill(startX, startY, fillColor) {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const activeCtx = getActiveContext();
+    const imageData = activeCtx.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imageData.data;
     const startPos = (Math.floor(startY) * canvas.width + Math.floor(startX)) * 4;
     const startR = pixels[startPos];
@@ -949,7 +1319,7 @@ function floodFill(startX, startY, fillColor) {
     }
     
     // Put back the original image
-    ctx.putImageData(imageData, 0, 0);
+    activeCtx.putImageData(imageData, 0, 0);
     
     if (visited.size === 0) return;
     
@@ -970,7 +1340,7 @@ function floodFill(startX, startY, fillColor) {
     const patternData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     
     // Second pass: apply the pattern to the visited pixels
-    const finalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const finalImageData = activeCtx.getImageData(0, 0, canvas.width, canvas.height);
     const finalPixels = finalImageData.data;
     
     visited.forEach(key => {
@@ -993,7 +1363,9 @@ function floodFill(startX, startY, fillColor) {
         finalPixels[canvasPos + 3] = 255;
     });
     
-    ctx.putImageData(finalImageData, 0, 0);
+    activeCtx.putImageData(finalImageData, 0, 0);
+    renderCanvas();
+    updateLayersList();
 }
 
 function hexToRgb(hex) {

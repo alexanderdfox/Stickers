@@ -1088,6 +1088,30 @@
             <!-- Canvas Area -->
             <div class="canvas-container">
                 <canvas id="drawing-canvas"></canvas>
+                
+                <!-- Layer Manager Panel -->
+                <div class="layer-panel">
+                    <div class="layer-panel-header">
+                        <h3>📑 Layers</h3>
+                        <button class="layer-toggle-btn" id="layer-toggle" title="Toggle Layer Panel">▼</button>
+                    </div>
+                    <div class="layer-panel-content">
+                        <div class="layer-controls">
+                            <button class="layer-control-btn" id="add-layer-btn" title="Add Layer">➕</button>
+                            <button class="layer-control-btn" id="delete-layer-btn" title="Delete Layer">🗑️</button>
+                            <button class="layer-control-btn" id="duplicate-layer-btn" title="Duplicate Layer">📋</button>
+                            <button class="layer-control-btn" id="merge-down-btn" title="Merge Down">⬇️</button>
+                        </div>
+                        <div class="layers-list" id="layers-list">
+                            <!-- Layers will be dynamically added here -->
+                        </div>
+                        <div class="layer-opacity-control">
+                            <label for="layer-opacity">Opacity</label>
+                            <input type="range" id="layer-opacity" min="0" max="100" value="100">
+                            <span id="opacity-display">100%</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

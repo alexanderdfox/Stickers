@@ -771,6 +771,294 @@ header p {
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
 }
 
+/* Layer Panel Styles */
+.layer-panel {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 280px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    border: 2px solid #e9ecef;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.layer-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    cursor: pointer;
+    user-select: none;
+}
+
+.layer-panel-header h3 {
+    margin: 0;
+    color: white;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.layer-toggle-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.layer-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.layer-panel.collapsed .layer-toggle-btn {
+    transform: rotate(-90deg);
+}
+
+.layer-panel.collapsed .layer-panel-content {
+    max-height: 0;
+    padding: 0;
+}
+
+.layer-panel-content {
+    max-height: 400px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding: 12px;
+}
+
+.layer-controls {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.layer-control-btn {
+    padding: 8px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 1.1em;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.layer-control-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    background: #f8f9ff;
+}
+
+.layer-control-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.layers-list {
+    max-height: 240px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    margin: 4px;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.layer-item:hover {
+    background: #f8f9ff;
+    border-color: #667eea;
+}
+
+.layer-item.active {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.layer-thumbnail {
+    width: 40px;
+    height: 30px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-right: 10px;
+    background: white;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+}
+
+.layer-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.layer-name {
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #212529;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.layer-name input {
+    width: 100%;
+    border: 1px solid #667eea;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+    font-family: inherit;
+}
+
+.layer-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.layer-visibility-btn {
+    background: none;
+    border: none;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    opacity: 0.6;
+}
+
+.layer-visibility-btn:hover {
+    background: rgba(102, 126, 234, 0.1);
+    opacity: 1;
+}
+
+.layer-visibility-btn.visible {
+    opacity: 1;
+}
+
+.layer-move-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.layer-move-btn {
+    background: none;
+    border: none;
+    font-size: 0.8em;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    line-height: 1;
+    opacity: 0.6;
+}
+
+.layer-move-btn:hover:not(:disabled) {
+    background: rgba(102, 126, 234, 0.1);
+    opacity: 1;
+}
+
+.layer-move-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.layer-opacity-control {
+    padding-top: 8px;
+    border-top: 2px solid #e9ecef;
+}
+
+.layer-opacity-control label {
+    display: block;
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 6px;
+}
+
+#layer-opacity {
+    width: calc(100% - 50px);
+    margin-right: 8px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, transparent, #667eea);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+#layer-opacity::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.15s;
+}
+
+#layer-opacity::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+#layer-opacity::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.15s;
+}
+
+#layer-opacity::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+#opacity-display {
+    font-weight: 700;
+    font-size: 0.9em;
+    color: #667eea;
+    display: inline-block;
+    min-width: 42px;
+    text-align: right;
+}
+
 /* Scrollbar styling */
 .toolbar::-webkit-scrollbar,
 .emoji-categories::-webkit-scrollbar {
@@ -871,6 +1159,23 @@ header p {
     .emoji-btn {
         padding: 12px;
         font-size: 1.8em;
+    }
+    
+    /* Layer panel mobile adjustments */
+    .layer-panel {
+        width: calc(100% - 24px);
+        bottom: 12px;
+        right: 12px;
+        left: 12px;
+    }
+    
+    .layers-list {
+        max-height: 180px;
+    }
+    
+    .layer-control-btn {
+        font-size: 1em;
+        padding: 10px;
     }
 }
 
