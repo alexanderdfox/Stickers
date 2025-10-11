@@ -23,10 +23,24 @@
                 <div class="tool-section">
                     <h3>🛠️ Tools</h3>
                     <button class="tool-btn active" data-tool="pencil" title="Pencil">✏️ Pencil</button>
+                    <button class="tool-btn" data-tool="line" title="Line">📏 Line</button>
                     <button class="tool-btn" data-tool="eraser" title="Eraser">🧽 Eraser</button>
                     <button class="tool-btn" data-tool="fill" title="Fill">🪣 Fill</button>
                     <button class="tool-btn" data-tool="spray" title="Spray Paint">💨 Spray</button>
+                    <button class="tool-btn" data-tool="circle" title="Circle">⭕ Circle</button>
+                    <button class="tool-btn" data-tool="square" title="Square">⬜ Square</button>
                     <button class="tool-btn" data-tool="stamp" title="Stamp">🎯 Stamp</button>
+                </div>
+                
+                <div class="tool-section">
+                    <h3>✂️ Selection</h3>
+                    <button class="tool-btn" data-tool="select-circle" title="Select Circle">⭕ Select</button>
+                    <button class="tool-btn" data-tool="select-square" title="Select Rectangle">⬜ Select</button>
+                    <div class="selection-actions">
+                        <button class="action-btn" id="copy-btn" title="Copy">📋 Copy</button>
+                        <button class="action-btn" id="cut-btn" title="Cut">✂️ Cut</button>
+                        <button class="action-btn" id="paste-btn" title="Paste" disabled>📌 Paste</button>
+                    </div>
                 </div>
 
                 <div class="tool-section">
@@ -58,6 +72,37 @@
                     <h3>📏 Size</h3>
                     <input type="range" id="brush-size" min="1" max="50" value="5">
                     <span id="size-display">5</span>
+                </div>
+
+                <div class="tool-section">
+                    <h3>🎨 Fill Pattern</h3>
+                    <div class="pattern-grid">
+                        <button class="pattern-btn active" data-pattern="solid" title="Solid">
+                            <div class="pattern-preview solid"></div>
+                        </button>
+                        <button class="pattern-btn" data-pattern="transparent" title="Transparent (Outline Only)">
+                            <div class="pattern-preview transparent"></div>
+                        </button>
+                        <button class="pattern-btn" data-pattern="horizontal" title="Horizontal Stripes">
+                            <div class="pattern-preview horizontal"></div>
+                        </button>
+                        <button class="pattern-btn" data-pattern="vertical" title="Vertical Stripes">
+                            <div class="pattern-preview vertical"></div>
+                        </button>
+                        <button class="pattern-btn" data-pattern="diagonal" title="Diagonal Stripes">
+                            <div class="pattern-preview diagonal"></div>
+                        </button>
+                        <button class="pattern-btn" data-pattern="checkerboard" title="Checkerboard">
+                            <div class="pattern-preview checkerboard"></div>
+                        </button>
+                        <button class="pattern-btn" data-pattern="dots" title="Dots">
+                            <div class="pattern-preview dots"></div>
+                        </button>
+                    </div>
+                    <div class="secondary-color-section">
+                        <label for="secondary-color">Secondary Color</label>
+                        <input type="color" id="secondary-color" value="#FFFFFF" title="Pattern color 2">
+                    </div>
                 </div>
 
                 <div class="tool-section">

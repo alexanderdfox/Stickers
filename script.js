@@ -17,6 +17,16 @@ let sparkleMode = false;
 let rainbowHue = 0;
 let selectedFont = 'Arial';
 let textCase = 'upper'; // 'upper' or 'lower'
+let fillPattern = 'solid';
+let secondaryColor = '#FFFFFF';
+let shapeStartX = 0;
+let shapeStartY = 0;
+
+// Selection and clipboard
+let clipboard = null;
+let selectionData = null;
+let selectionType = null; // 'circle' or 'square'
+let selectionBounds = null;
 
 // Audio context for sound effects
 let audioContext = null;
@@ -216,6 +226,79 @@ function updateFontPreview() {
     }
 }
 
+// Pattern buttons
+document.querySelectorAll('.pattern-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        document.querySelectorAll('.pattern-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        fillPattern = btn.dataset.pattern;
+    });
+});
+
+// Secondary color picker
+const secondaryColorPicker = document.getElementById('secondary-color');
+if (secondaryColorPicker) {
+    secondaryColorPicker.addEventListener('input', (e) => {
+        initAudio();
+        secondaryColor = e.target.value;
+    });
+}
+
+// Selection action buttons
+const copyBtn = document.getElementById('copy-btn');
+const cutBtn = document.getElementById('cut-btn');
+const pasteBtn = document.getElementById('paste-btn');
+
+if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+        if (selectionData) {
+            initAudio();
+            playSound('click');
+            clipboard = {
+                imageData: selectionData,
+                type: selectionType,
+                bounds: selectionBounds
+            };
+            pasteBtn.disabled = false;
+            selectionData = null;
+            selectionBounds = null;
+        }
+    });
+}
+
+if (cutBtn) {
+    cutBtn.addEventListener('click', () => {
+        if (selectionData) {
+            initAudio();
+            playSound('click');
+            clipboard = {
+                imageData: selectionData,
+                type: selectionType,
+                bounds: selectionBounds
+            };
+            pasteBtn.disabled = false;
+            
+            // Clear the selected area
+            clearSelection();
+            selectionData = null;
+            selectionBounds = null;
+        }
+    });
+}
+
+if (pasteBtn) {
+    pasteBtn.addEventListener('click', () => {
+        if (clipboard) {
+            initAudio();
+            playSound('click');
+            currentTool = 'paste';
+            // Switch to paste mode
+        }
+    });
+}
+
 // Emoji stamps
 document.querySelectorAll('.emoji-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -296,7 +379,18 @@ function clearCanvasWithAnimation() {
 canvas.addEventListener('mousedown', startDrawing);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDrawing);
-canvas.addEventListener('mouseout', stopDrawing);
+canvas.addEventListener('mouseout', (e) => {
+    if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'line' || 
+        currentTool === 'select-circle' || currentTool === 'select-square') {
+        // Don't complete action if mouse leaves canvas
+        if (isDrawing) {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+    } else {
+        stopDrawing(e);
+    }
+});
 
 // Touch events for mobile (iOS compatible)
 canvas.addEventListener('touchstart', (e) => {
@@ -355,6 +449,15 @@ function startDrawing(e) {
         playSound('stamp');
         stampEmoji(x, y);
         isDrawing = false;
+    } else if (currentTool === 'paste' && clipboard) {
+        playSound('stamp');
+        pasteClipboard(x, y);
+        isDrawing = false;
+    } else if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'line' || 
+               currentTool === 'select-circle' || currentTool === 'select-square') {
+        // Store starting position for shapes, lines, and selections
+        shapeStartX = x;
+        shapeStartY = y;
     } else {
         draw(e);
     }
@@ -374,9 +477,35 @@ function draw(e) {
     } else if (currentTool === 'spray') {
         drawSpray(x, y);
     }
+    // Shapes are drawn on mouseup, not during drag
 }
 
-function stopDrawing() {
+function stopDrawing(e) {
+    if (!isDrawing) return;
+    
+    if (e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        if (currentTool === 'circle') {
+            drawCircle(shapeStartX, shapeStartY, x, y);
+            playSound('stamp');
+        } else if (currentTool === 'square') {
+            drawSquare(shapeStartX, shapeStartY, x, y);
+            playSound('stamp');
+        } else if (currentTool === 'line') {
+            drawLine(shapeStartX, shapeStartY, x, y);
+            playSound('draw');
+        } else if (currentTool === 'select-circle') {
+            selectCircle(shapeStartX, shapeStartY, x, y);
+            playSound('click');
+        } else if (currentTool === 'select-square') {
+            selectSquare(shapeStartX, shapeStartY, x, y);
+            playSound('click');
+        }
+    }
+    
     isDrawing = false;
     ctx.beginPath();
 }
@@ -531,6 +660,244 @@ function addSparkles(x, y) {
     }
 }
 
+function createPattern() {
+    if (fillPattern === 'solid') {
+        return currentColor;
+    }
+    
+    if (fillPattern === 'transparent') {
+        return null; // Return null for transparent
+    }
+    
+    const patternCanvas = document.createElement('canvas');
+    const patternCtx = patternCanvas.getContext('2d');
+    
+    const color1 = currentColor;
+    const color2 = secondaryColor;
+    
+    switch(fillPattern) {
+        case 'horizontal':
+            patternCanvas.width = 1;
+            patternCanvas.height = 8;
+            patternCtx.fillStyle = color1;
+            patternCtx.fillRect(0, 0, 1, 4);
+            patternCtx.fillStyle = color2;
+            patternCtx.fillRect(0, 4, 1, 4);
+            break;
+            
+        case 'vertical':
+            patternCanvas.width = 8;
+            patternCanvas.height = 1;
+            patternCtx.fillStyle = color1;
+            patternCtx.fillRect(0, 0, 4, 1);
+            patternCtx.fillStyle = color2;
+            patternCtx.fillRect(4, 0, 4, 1);
+            break;
+            
+        case 'diagonal':
+            patternCanvas.width = 10;
+            patternCanvas.height = 10;
+            patternCtx.fillStyle = color2;
+            patternCtx.fillRect(0, 0, 10, 10);
+            patternCtx.strokeStyle = color1;
+            patternCtx.lineWidth = 3;
+            patternCtx.beginPath();
+            patternCtx.moveTo(0, 10);
+            patternCtx.lineTo(10, 0);
+            patternCtx.stroke();
+            break;
+            
+        case 'checkerboard':
+            patternCanvas.width = 16;
+            patternCanvas.height = 16;
+            patternCtx.fillStyle = color2;
+            patternCtx.fillRect(0, 0, 16, 16);
+            patternCtx.fillStyle = color1;
+            patternCtx.fillRect(0, 0, 8, 8);
+            patternCtx.fillRect(8, 8, 8, 8);
+            break;
+            
+        case 'dots':
+            patternCanvas.width = 12;
+            patternCanvas.height = 12;
+            patternCtx.fillStyle = color2;
+            patternCtx.fillRect(0, 0, 12, 12);
+            patternCtx.fillStyle = color1;
+            patternCtx.beginPath();
+            patternCtx.arc(6, 6, 3, 0, Math.PI * 2);
+            patternCtx.fill();
+            break;
+    }
+    
+    return ctx.createPattern(patternCanvas, 'repeat');
+}
+
+function drawCircle(startX, startY, endX, endY) {
+    const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    
+    ctx.beginPath();
+    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+    
+    const fillStyle = createPattern();
+    if (fillStyle !== null) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+    }
+    
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = Math.max(brushSize / 2, 2);
+    ctx.stroke();
+    
+    if (sparkleMode) {
+        addSparkles(startX, startY);
+    }
+}
+
+function drawSquare(startX, startY, endX, endY) {
+    const width = endX - startX;
+    const height = endY - startY;
+    
+    ctx.beginPath();
+    ctx.rect(startX, startY, width, height);
+    
+    const fillStyle = createPattern();
+    if (fillStyle !== null) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+    }
+    
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = Math.max(brushSize / 2, 2);
+    ctx.stroke();
+    
+    if (sparkleMode) {
+        addSparkles(startX + width/2, startY + height/2);
+    }
+}
+
+function drawLine(startX, startY, endX, endY) {
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    
+    if (rainbowMode) {
+        ctx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+    } else {
+        ctx.strokeStyle = currentColor;
+    }
+    
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
+    if (sparkleMode) {
+        addSparkles((startX + endX) / 2, (startY + endY) / 2);
+    }
+}
+
+function selectCircle(startX, startY, endX, endY) {
+    const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    
+    // Get the bounding box
+    const left = Math.max(0, Math.floor(startX - radius));
+    const top = Math.max(0, Math.floor(startY - radius));
+    const width = Math.min(canvas.width - left, Math.ceil(radius * 2));
+    const height = Math.min(canvas.height - top, Math.ceil(radius * 2));
+    
+    // Get the image data
+    const imageData = ctx.getImageData(left, top, width, height);
+    
+    // Create a mask for the circle
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = width;
+    maskCanvas.height = height;
+    const maskCtx = maskCanvas.getContext('2d');
+    
+    maskCtx.beginPath();
+    maskCtx.arc(startX - left, startY - top, radius, 0, Math.PI * 2);
+    maskCtx.fillStyle = 'white';
+    maskCtx.fill();
+    
+    const maskData = maskCtx.getImageData(0, 0, width, height);
+    
+    // Apply mask to selection
+    for (let i = 0; i < imageData.data.length; i += 4) {
+        if (maskData.data[i] === 0) {
+            imageData.data[i + 3] = 0; // Make transparent
+        }
+    }
+    
+    selectionData = imageData;
+    selectionType = 'circle';
+    selectionBounds = { x: startX, y: startY, radius: radius, left: left, top: top, width: width, height: height };
+    
+    // Draw selection outline
+    ctx.save();
+    ctx.strokeStyle = '#667eea';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function selectSquare(startX, startY, endX, endY) {
+    const left = Math.min(startX, endX);
+    const top = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+    
+    // Get the image data
+    const imageData = ctx.getImageData(left, top, width, height);
+    
+    selectionData = imageData;
+    selectionType = 'square';
+    selectionBounds = { left: left, top: top, width: width, height: height };
+    
+    // Draw selection outline
+    ctx.save();
+    ctx.strokeStyle = '#667eea';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(left, top, width, height);
+    ctx.restore();
+}
+
+function clearSelection() {
+    if (!selectionBounds) return;
+    
+    ctx.fillStyle = 'white';
+    if (selectionType === 'circle') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(selectionBounds.x, selectionBounds.y, selectionBounds.radius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillRect(selectionBounds.left, selectionBounds.top, selectionBounds.width, selectionBounds.height);
+        ctx.restore();
+    } else if (selectionType === 'square') {
+        ctx.fillRect(selectionBounds.left, selectionBounds.top, selectionBounds.width, selectionBounds.height);
+    }
+}
+
+function pasteClipboard(x, y) {
+    if (!clipboard) return;
+    
+    const imageData = clipboard.imageData;
+    const bounds = clipboard.bounds;
+    
+    // Calculate paste position (centered on click)
+    let pasteX = x - bounds.width / 2;
+    let pasteY = y - bounds.height / 2;
+    
+    // Put the image data at the new position
+    ctx.putImageData(imageData, pasteX, pasteY);
+    
+    if (sparkleMode) {
+        addSparkles(x, y);
+    }
+}
+
 function floodFill(startX, startY, fillColor) {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imageData.data;
@@ -539,14 +906,12 @@ function floodFill(startX, startY, fillColor) {
     const startG = pixels[startPos + 1];
     const startB = pixels[startPos + 2];
     
-    // Don't fill if clicking the same color
-    if (startR === fillColor.r && startG === fillColor.g && startB === fillColor.b) {
-        return;
-    }
-    
+    // Find the bounding box of the area to fill
     const stack = [[Math.floor(startX), Math.floor(startY)]];
     const visited = new Set();
+    let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
     
+    // First pass: find all pixels to fill and calculate bounds
     while (stack.length > 0) {
         const [x, y] = stack.pop();
         const key = `${x},${y}`;
@@ -563,10 +928,11 @@ function floodFill(startX, startY, fillColor) {
         
         if (r !== startR || g !== startG || b !== startB) continue;
         
-        pixels[pos] = fillColor.r;
-        pixels[pos + 1] = fillColor.g;
-        pixels[pos + 2] = fillColor.b;
-        pixels[pos + 3] = 255;
+        // Update bounds
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
         
         stack.push([x + 1, y]);
         stack.push([x - 1, y]);
@@ -574,7 +940,52 @@ function floodFill(startX, startY, fillColor) {
         stack.push([x, y - 1]);
     }
     
+    // Put back the original image
     ctx.putImageData(imageData, 0, 0);
+    
+    if (visited.size === 0) return;
+    
+    // Create a temporary canvas for the pattern
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = maxX - minX + 1;
+    tempCanvas.height = maxY - minY + 1;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Fill the temporary canvas with the pattern
+    const fillStyle = createPattern();
+    if (fillStyle !== null) {
+        tempCtx.fillStyle = fillStyle;
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    }
+    
+    // Get the pattern image data
+    const patternData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    
+    // Second pass: apply the pattern to the visited pixels
+    const finalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const finalPixels = finalImageData.data;
+    
+    visited.forEach(key => {
+        const [x, y] = key.split(',').map(Number);
+        const canvasPos = (y * canvas.width + x) * 4;
+        
+        // Calculate position in pattern
+        const patternX = x - minX;
+        const patternY = y - minY;
+        const patternPos = (patternY * tempCanvas.width + patternX) * 4;
+        
+        if (fillStyle === null) {
+            // For transparent, don't change the pixel
+            return;
+        }
+        
+        finalPixels[canvasPos] = patternData.data[patternPos];
+        finalPixels[canvasPos + 1] = patternData.data[patternPos + 1];
+        finalPixels[canvasPos + 2] = patternData.data[patternPos + 2];
+        finalPixels[canvasPos + 3] = 255;
+    });
+    
+    ctx.putImageData(finalImageData, 0, 0);
 }
 
 function hexToRgb(hex) {

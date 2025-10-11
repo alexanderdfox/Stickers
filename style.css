@@ -124,6 +124,45 @@ header p {
     transform: translateY(0);
 }
 
+.selection-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.action-btn {
+    padding: 10px 8px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    color: #495057;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.action-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    background: #f8f9ff;
+}
+
+.action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.action-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
 .color-wheel-container {
     margin-bottom: 16px;
     padding: 14px;
@@ -271,6 +310,150 @@ header p {
     display: inline-block;
     min-width: 35px;
     text-align: center;
+}
+
+.pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.pattern-btn {
+    padding: 8px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.pattern-btn:hover {
+    transform: translateY(-1px);
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.pattern-btn.active {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    background: #f8f9ff;
+}
+
+.pattern-preview {
+    width: 100%;
+    height: 40px;
+    border-radius: 4px;
+    position: relative;
+}
+
+.pattern-preview.solid {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.pattern-preview.transparent {
+    background: white;
+    border: 3px solid #667eea;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.pattern-preview.transparent::after {
+    content: '∅';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: #667eea;
+    font-weight: bold;
+}
+
+.pattern-preview.horizontal {
+    background: repeating-linear-gradient(
+        0deg,
+        #667eea,
+        #667eea 4px,
+        white 4px,
+        white 8px
+    );
+}
+
+.pattern-preview.vertical {
+    background: repeating-linear-gradient(
+        90deg,
+        #667eea,
+        #667eea 4px,
+        white 4px,
+        white 8px
+    );
+}
+
+.pattern-preview.diagonal {
+    background: repeating-linear-gradient(
+        45deg,
+        #667eea,
+        #667eea 6px,
+        white 6px,
+        white 12px
+    );
+}
+
+.pattern-preview.checkerboard {
+    background-image: 
+        linear-gradient(45deg, #667eea 25%, transparent 25%),
+        linear-gradient(-45deg, #667eea 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #667eea 75%),
+        linear-gradient(-45deg, transparent 75%, #667eea 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+    background-color: white;
+}
+
+.pattern-preview.dots {
+    background-image: radial-gradient(circle, #667eea 25%, transparent 25%);
+    background-size: 10px 10px;
+    background-color: white;
+}
+
+.secondary-color-section {
+    margin-top: 12px;
+}
+
+.secondary-color-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#secondary-color {
+    width: 100%;
+    height: 40px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#secondary-color:hover {
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+#secondary-color::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+#secondary-color::-webkit-color-swatch {
+    border: none;
+    border-radius: 6px;
 }
 
 #font-selector {
