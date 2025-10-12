@@ -1197,6 +1197,43 @@
             <div class="canvas-container">
                 <canvas id="drawing-canvas"></canvas>
                 
+                <!-- Custom Context Menu -->
+                <div class="context-menu" id="context-menu" style="display: none;">
+                    <div class="context-menu-header">
+                        <span class="context-menu-header-title">⚡ Quick Menu</span>
+                        <button class="context-menu-close" id="context-menu-close">✕</button>
+                    </div>
+                    <div class="context-menu-section">
+                        <div class="context-menu-title">🛠️ Quick Tools</div>
+                        <button class="context-menu-item" data-action="tool-pencil">✏️ Pencil</button>
+                        <button class="context-menu-item" data-action="tool-eraser">🧽 Eraser</button>
+                        <button class="context-menu-item" data-action="tool-fill">🪣 Fill</button>
+                        <button class="context-menu-item" data-action="tool-stamp">🎯 Stamp</button>
+                    </div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-section">
+                        <div class="context-menu-title">✨ Effects</div>
+                        <button class="context-menu-item" data-action="toggle-rainbow">🌈 Toggle Rainbow</button>
+                        <button class="context-menu-item" data-action="toggle-sparkle">✨ Toggle Sparkle</button>
+                    </div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-section">
+                        <button class="context-menu-item" data-action="undo">↶ Undo</button>
+                        <button class="context-menu-item" data-action="redo">↷ Redo</button>
+                    </div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-section">
+                        <button class="context-menu-item" data-action="zoom-in">🔍 Zoom In</button>
+                        <button class="context-menu-item" data-action="zoom-out">🔍 Zoom Out</button>
+                        <button class="context-menu-item" data-action="zoom-reset">⟲ Reset Zoom</button>
+                    </div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-section">
+                        <button class="context-menu-item" data-action="save">💾 Save PNG</button>
+                        <button class="context-menu-item" data-action="clear">🗑️ Clear Layer</button>
+                    </div>
+                </div>
+                
                 <!-- Help Modal -->
                 <div class="help-modal" id="help-modal" style="display: none;">
                     <div class="help-modal-content">
@@ -1253,7 +1290,9 @@
                                 <div class="help-list">
                                     <p>• Rainbow & Sparkle work with <strong>ALL</strong> tools!</p>
                                     <p>• Use layers to organize complex drawings</p>
-                                    <p>• Double-click layer name to rename</p>
+                                    <p>• <strong>Desktop:</strong> Double-click layer name to rename</p>
+                                    <p>• <strong>Mobile:</strong> Tap ✏️ button or long-press layer name to rename</p>
+                                    <p>• <strong>Right-click</strong> (or long-press on mobile) canvas for quick menu</p>
                                     <p>• Copy/Cut/Paste work on active layer</p>
                                     <p>• All shapes support patterns & effects</p>
                                     <p>• Zoom in (+) to see details, zoom out (-) for overview</p>

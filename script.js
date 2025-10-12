@@ -460,11 +460,14 @@ function updateLayersList() {
         const layerName = document.createElement('div');
         layerName.className = 'layer-name';
         layerName.textContent = layer.name;
-        layerName.addEventListener('dblclick', (e) => {
+        
+        // Function to start renaming
+        const startRename = (e) => {
             e.stopPropagation();
             const input = document.createElement('input');
             input.type = 'text';
             input.value = layer.name;
+            input.className = 'layer-name-input';
             input.addEventListener('blur', () => {
                 layer.name = input.value || layer.name;
                 updateLayersList();
@@ -480,9 +483,51 @@ function updateLayersList() {
             layerName.appendChild(input);
             input.focus();
             input.select();
-        });
+        };
+        
+        // Desktop: double-click to rename
+        layerName.addEventListener('dblclick', startRename);
+        
+        // Mobile: long-press to rename (500ms)
+        let touchStartTime;
+        let longPressTimer;
+        
+        layerName.addEventListener('touchstart', (e) => {
+            touchStartTime = Date.now();
+            longPressTimer = setTimeout(() => {
+                // Trigger rename after 500ms hold
+                const touchDuration = Date.now() - touchStartTime;
+                if (touchDuration >= 500) {
+                    startRename(e);
+                    // Haptic feedback if available
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                }
+            }, 500);
+        }, { passive: true });
+        
+        layerName.addEventListener('touchend', () => {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
+        
+        layerName.addEventListener('touchmove', () => {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
         
         layerInfo.appendChild(layerName);
+        
+        // Add rename button for easier access on mobile
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'layer-rename-btn';
+        renameBtn.innerHTML = '✏️';
+        renameBtn.title = 'Rename layer';
+        renameBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startRename(e);
+        });
+        
+        layerInfo.appendChild(renameBtn);
         
         const layerActions = document.createElement('div');
         layerActions.className = 'layer-actions';
@@ -657,18 +702,40 @@ saveHistory();
 
 // Setup collapsible sections
 document.querySelectorAll('.section-header').forEach(header => {
+    // Click handler for desktop
     header.addEventListener('click', (e) => {
         // Don't trigger if clicking the collapse button directly
         if (e.target.classList.contains('section-collapse-btn')) {
             return;
         }
         
+        initAudio();
+        playSound('click');
         const toolSection = header.closest('.tool-section');
         toggleSection(toolSection);
     });
+    
+    // Touch handler for mobile (iOS)
+    let touchStartTime;
+    header.addEventListener('touchstart', (e) => {
+        touchStartTime = Date.now();
+    }, { passive: true });
+    
+    header.addEventListener('touchend', (e) => {
+        const touchDuration = Date.now() - touchStartTime;
+        // Only trigger if it was a quick tap (not a scroll)
+        if (touchDuration < 300) {
+            e.preventDefault();
+            initAudio();
+            playSound('click');
+            const toolSection = header.closest('.tool-section');
+            toggleSection(toolSection);
+        }
+    }, { passive: false });
 });
 
 document.querySelectorAll('.section-collapse-btn').forEach(btn => {
+    // Click handler for desktop
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
         initAudio();
@@ -677,6 +744,12 @@ document.querySelectorAll('.section-collapse-btn').forEach(btn => {
         const toolSection = btn.closest('.tool-section');
         toggleSection(toolSection);
     });
+    
+    // Touch handler for mobile (iOS) - prevent double trigger
+    btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, { passive: false });
 });
 
 function toggleSection(section) {
@@ -838,14 +911,29 @@ brushSizeSlider.addEventListener('change', (e) => {
 // Font selector
 const fontSelector = document.getElementById('font-selector');
 const fontPreview = document.getElementById('font-preview');
-fontSelector.addEventListener('change', (e) => {
-    initAudio();
-    playSound('click');
-    selectedFont = e.target.value;
+
+function handleFontChange(value) {
+    selectedFont = value;
     fontPreview.style.fontFamily = selectedFont;
     fontSelector.style.fontFamily = selectedFont;
     if (currentTool === 'stamp') updateCursor();
+}
+
+fontSelector.addEventListener('change', (e) => {
+    initAudio();
+    playSound('click');
+    handleFontChange(e.target.value);
 });
+
+// iOS: Ensure dropdown opens on touch
+fontSelector.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+    // Force focus to open dropdown on iOS
+    setTimeout(() => {
+        fontSelector.focus();
+        fontSelector.click();
+    }, 10);
+}, { passive: false });
 
 // Case toggle buttons
 document.querySelectorAll('.case-btn').forEach(btn => {
@@ -1219,6 +1307,30 @@ if (canvasSizeSelector) {
             e.target.value = currentSize;
         }
     });
+    
+    // iOS: Ensure dropdown opens on touch
+    canvasSizeSelector.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+        // Force focus to open dropdown on iOS
+        setTimeout(() => {
+            canvasSizeSelector.focus();
+            canvasSizeSelector.click();
+        }, 10);
+    }, { passive: false });
+}
+
+// Export size selector
+const exportSizeSelector = document.getElementById('export-size-selector');
+if (exportSizeSelector) {
+    // iOS: Ensure dropdown opens on touch
+    exportSizeSelector.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+        // Force focus to open dropdown on iOS
+        setTimeout(() => {
+            exportSizeSelector.focus();
+            exportSizeSelector.click();
+        }, 10);
+    }, { passive: false });
 }
 
 function changeCanvasSize(newWidth, newHeight) {
@@ -1286,34 +1398,50 @@ const helpModal = document.getElementById('help-modal');
 const helpCloseBtn = document.getElementById('help-close-btn');
 
 if (helpBtn) {
+    // Desktop click handler
     helpBtn.addEventListener('click', () => {
         initAudio();
         playSound('click');
         if (helpModal) {
             helpModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
         }
     });
 }
 
 if (helpCloseBtn) {
+    // Desktop click handler
     helpCloseBtn.addEventListener('click', () => {
         initAudio();
         playSound('click');
         if (helpModal) {
             helpModal.style.display = 'none';
+            document.body.style.overflow = ''; // Restore scroll
         }
     });
 }
 
-// Close help modal when clicking outside
+// Close help modal when clicking/tapping outside
 if (helpModal) {
     helpModal.addEventListener('click', (e) => {
         if (e.target === helpModal) {
             initAudio();
             playSound('click');
             helpModal.style.display = 'none';
+            document.body.style.overflow = ''; // Restore scroll
         }
     });
+    
+    // Touch handler for mobile
+    helpModal.addEventListener('touchend', (e) => {
+        if (e.target === helpModal) {
+            e.preventDefault();
+            initAudio();
+            playSound('click');
+            helpModal.style.display = 'none';
+            document.body.style.overflow = ''; // Restore scroll
+        }
+    }, { passive: false });
 }
 
 function clearCanvasWithAnimation() {
@@ -1332,6 +1460,174 @@ function clearCanvasWithAnimation() {
         }
     }, 20);
 }
+
+// Custom Context Menu
+const contextMenu = document.getElementById('context-menu');
+let contextMenuTimeout;
+
+function showContextMenu(x, y) {
+    if (!contextMenu) return;
+    
+    initAudio();
+    playSound('click');
+    
+    // Position the menu
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.style.display = 'block';
+    
+    // Adjust position if menu goes off-screen
+    setTimeout(() => {
+        const rect = contextMenu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            contextMenu.style.left = `${x - rect.width}px`;
+        }
+        if (rect.bottom > window.innerHeight) {
+            contextMenu.style.top = `${y - rect.height}px`;
+        }
+    }, 10);
+}
+
+function hideContextMenu() {
+    if (contextMenu) {
+        contextMenu.style.display = 'none';
+    }
+}
+
+// Right-click handler for canvas
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY);
+});
+
+// Long-press handler for mobile context menu
+let longPressTimer;
+let longPressStartX, longPressStartY;
+
+// We'll use a separate touchstart for long-press before the main one
+const canvasLongPressStart = (e) => {
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        longPressStartX = touch.clientX;
+        longPressStartY = touch.clientY;
+        isLongPress = false;
+        
+        // Start long-press timer (650ms)
+        longPressTimer = setTimeout(() => {
+            isLongPress = true;
+            showContextMenu(longPressStartX, longPressStartY);
+            // Haptic feedback
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }, 650);
+    }
+};
+
+const canvasLongPressMove = (e) => {
+    // Cancel long-press if finger moves
+    if (longPressTimer && e.touches.length > 0) {
+        const touch = e.touches[0];
+        const moveDistance = Math.sqrt(
+            Math.pow(touch.clientX - longPressStartX, 2) +
+            Math.pow(touch.clientY - longPressStartY, 2)
+        );
+        
+        if (moveDistance > 10) {
+            clearTimeout(longPressTimer);
+            isLongPress = false;
+        }
+    }
+};
+
+const canvasLongPressEnd = () => {
+    clearTimeout(longPressTimer);
+};
+
+// Add long-press handlers (these fire before the main touchstart)
+canvas.addEventListener('touchstart', canvasLongPressStart, { passive: true, capture: true });
+canvas.addEventListener('touchmove', canvasLongPressMove, { passive: true, capture: true });
+canvas.addEventListener('touchend', canvasLongPressEnd, { passive: true, capture: true });
+
+// Context menu actions
+if (contextMenu) {
+    contextMenu.addEventListener('click', (e) => {
+        const item = e.target.closest('.context-menu-item');
+        if (!item) return;
+        
+        const action = item.dataset.action;
+        initAudio();
+        playSound('click');
+        hideContextMenu();
+        
+        // Handle actions
+        switch(action) {
+            case 'tool-pencil':
+                document.querySelector('[data-tool="pencil"]').click();
+                break;
+            case 'tool-eraser':
+                document.querySelector('[data-tool="eraser"]').click();
+                break;
+            case 'tool-fill':
+                document.querySelector('[data-tool="fill"]').click();
+                break;
+            case 'tool-stamp':
+                document.querySelector('[data-tool="stamp"]').click();
+                break;
+            case 'toggle-rainbow':
+                document.querySelector('[data-effect="rainbow"]').click();
+                break;
+            case 'toggle-sparkle':
+                document.querySelector('[data-effect="sparkle"]').click();
+                break;
+            case 'undo':
+                undo();
+                break;
+            case 'redo':
+                redo();
+                break;
+            case 'zoom-in':
+                zoomIn();
+                break;
+            case 'zoom-out':
+                zoomOut();
+                break;
+            case 'zoom-reset':
+                resetZoom();
+                break;
+            case 'save':
+                document.getElementById('save-btn').click();
+                break;
+            case 'clear':
+                document.getElementById('clear-btn').click();
+                break;
+        }
+    });
+}
+
+// Context menu close button
+const contextMenuClose = document.getElementById('context-menu-close');
+if (contextMenuClose) {
+    contextMenuClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        initAudio();
+        playSound('click');
+        hideContextMenu();
+    });
+}
+
+// Close context menu when clicking elsewhere
+document.addEventListener('click', (e) => {
+    if (contextMenu && !contextMenu.contains(e.target)) {
+        hideContextMenu();
+    }
+});
+
+document.addEventListener('touchstart', (e) => {
+    if (contextMenu && !contextMenu.contains(e.target) && !canvas.contains(e.target)) {
+        hideContextMenu();
+    }
+}, { passive: true });
 
 // Mouse events
 canvas.addEventListener('mousedown', startDrawing);
@@ -1355,32 +1651,40 @@ canvas.addEventListener('mouseout', (e) => {
 let lastTouchX = 0;
 let lastTouchY = 0;
 let isTwoFingerGesture = false;
+let isLongPress = false;
 
 canvas.addEventListener('touchstart', (e) => {
     initAudio();
+    isLongPress = false;
     
     // Check if this is a two-finger gesture for rotation
     if (e.touches.length === 2 && currentTool === 'stamp') {
         isTwoFingerGesture = true;
+        clearTimeout(longPressTimer); // Cancel long-press
         e.preventDefault();
         return; // Don't trigger drawing
     }
     
-    // Single touch - proceed with drawing
+    // Single touch - set up for drawing (unless it becomes a long-press)
     if (e.touches.length === 1) {
         e.preventDefault();
         isTwoFingerGesture = false;
         const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
         lastTouchX = touch.clientX;
         lastTouchY = touch.clientY;
         
-        const mouseEvent = new MouseEvent('mousedown', {
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-            bubbles: true
-        });
-        canvas.dispatchEvent(mouseEvent);
+        // Wait to see if it's a long-press for context menu
+        setTimeout(() => {
+            // Only start drawing if it wasn't a long press
+            if (!isLongPress && e.touches.length === 1) {
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY,
+                    bubbles: true
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }
+        }, 100);
     }
 }, { passive: false });
 
@@ -1412,8 +1716,8 @@ canvas.addEventListener('touchend', (e) => {
         isTwoFingerGesture = false;
     }
     
-    // Only trigger mouseup if it wasn't a two-finger gesture
-    if (!isTwoFingerGesture) {
+    // Only trigger mouseup if it wasn't a two-finger gesture or long-press
+    if (!isTwoFingerGesture && !isLongPress) {
         // Use last known touch position for touchend
         const mouseEvent = new MouseEvent('mouseup', {
             clientX: lastTouchX,
@@ -1422,6 +1726,9 @@ canvas.addEventListener('touchend', (e) => {
         });
         canvas.dispatchEvent(mouseEvent);
     }
+    
+    // Reset long-press flag
+    isLongPress = false;
 }, { passive: false });
 
 canvas.addEventListener('touchcancel', (e) => {
