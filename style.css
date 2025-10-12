@@ -213,12 +213,23 @@ header p {
     background: #f8f9ff;
 }
 
+/* Active/pressed state for touch feedback */
+.tool-btn:active, .effect-btn:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2);
+    transition: all 0.1s ease;
+}
+
 .tool-btn.active {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-color: #667eea;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     transform: translateY(0);
+}
+
+.tool-btn.active:active {
+    transform: scale(0.98);
 }
 
 .selection-actions, .history-actions {
@@ -261,7 +272,8 @@ header p {
 }
 
 .action-btn:active:not(:disabled) {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.95);
+    box-shadow: 0 1px 3px rgba(102, 126, 234, 0.2);
 }
 
 .color-wheel-container {
@@ -356,6 +368,11 @@ header p {
     border: 3px solid #212529;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
     transform: scale(1.05);
+}
+
+.color-btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
 }
 
 #brush-size {
@@ -477,6 +494,11 @@ header p {
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
     background: #f8f9ff;
+}
+
+.pattern-btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
 }
 
 .pattern-preview {
@@ -689,6 +711,11 @@ header p {
     transform: translateY(0);
 }
 
+.case-btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+}
+
 .font-preview {
     margin-top: 12px;
     padding: 12px;
@@ -817,6 +844,15 @@ header p {
     transform: scale(1.1);
 }
 
+.emoji-btn:active {
+    transform: scale(1.05);
+    transition: transform 0.1s ease;
+}
+
+.emoji-btn.active:active {
+    transform: scale(1.0);
+}
+
 .effect-btn {
     background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
     border-color: #fdc830;
@@ -859,7 +895,8 @@ header p {
 }
 
 .save-btn:active {
-    transform: translateY(0);
+    transform: scale(0.97);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
 }
 
 .clear-btn {
@@ -1154,10 +1191,12 @@ header p {
     align-items: center;
     min-height: 600px;
     padding: 20px;
-    overflow: hidden;
+    overflow: auto; /* Allow scrolling when zoomed */
     position: relative;
     /* Prevent overscroll on iOS */
     overscroll-behavior: contain;
+    /* Smooth scrolling for zoomed canvas */
+    -webkit-overflow-scrolling: touch;
 }
 
 #drawing-canvas {
@@ -1170,10 +1209,16 @@ header p {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
-    /* Ensure canvas is responsive on mobile */
-    max-width: none; /* Allow zoom to exceed container */
+    /* Canvas sizing and zoom handling */
+    display: block;
+    margin: auto; /* Center when smaller than container */
+    max-width: 100%; /* Prevent overflow when not zoomed */
+    max-height: 100%;
+    width: auto;
     height: auto;
     transform-origin: center center;
+    /* Ensure proper sizing */
+    object-fit: contain;
 }
 
 #drawing-canvas:hover {
@@ -1182,6 +1227,19 @@ header p {
 
 #drawing-canvas.drawing-active {
     box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
+}
+
+/* When zoomed, allow canvas to exceed container */
+.canvas-container.zoomed {
+    overflow: auto;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.canvas-container.zoomed #drawing-canvas {
+    max-width: none;
+    max-height: none;
+    margin: 0;
 }
 
 /* iOS-specific fixes */
@@ -1573,12 +1631,25 @@ header p {
         min-height: 400px;
         min-height: calc(var(--vh, 1vh) * 50);
         padding: 12px;
+        /* Better overflow handling on mobile when zoomed */
+        overflow-x: auto;
+        overflow-y: auto;
     }
     
     #drawing-canvas {
+        /* On mobile, respect container width when not zoomed */
         max-width: 100%;
         height: auto;
+        /* Maintain aspect ratio */
+        object-fit: contain;
     }
+    
+    /* When zoomed on mobile, allow full canvas size */
+    .canvas-container.zoomed #drawing-canvas {
+        max-width: none;
+        max-height: none;
+    }
+}
     
     .emoji-categories {
         max-height: 300px;
@@ -1656,6 +1727,11 @@ header p {
     
     .emoji-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .canvas-container {
+        min-height: 300px;
+        padding: 8px;
     }
 }
 

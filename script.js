@@ -16,8 +16,9 @@ function setInitialCanvasSize() {
     
     if (window.innerWidth <= 768) {
         // Mobile: smaller canvas for better performance
-        const maxWidth = Math.min(600, window.innerWidth - 40);
-        const maxHeight = Math.min(450, window.innerHeight * 0.5);
+        const containerWidth = Math.max(300, window.innerWidth - 100);
+        const maxWidth = Math.min(600, containerWidth);
+        const maxHeight = Math.min(450, window.innerHeight * 0.4);
         canvas.width = maxWidth;
         canvas.height = maxHeight;
     } else {
@@ -26,9 +27,10 @@ function setInitialCanvasSize() {
         canvas.height = 600;
     }
     
-    // Set CSS size to match for proper rendering on high-DPI displays
-    canvas.style.width = canvas.width + 'px';
-    canvas.style.height = canvas.height + 'px';
+    // Don't set explicit CSS size - let CSS handle it responsively
+    // This allows proper scaling on mobile
+    canvas.style.width = '';
+    canvas.style.height = '';
 }
 
 setInitialCanvasSize();
@@ -104,6 +106,25 @@ let clipboard = null;
 let selectionData = null;
 let selectionType = null; // 'circle' or 'square'
 let selectionBounds = null;
+
+// Helper function to get canvas coordinates accounting for zoom
+function getCanvasCoordinates(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    
+    // Get position relative to canvas
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // Account for zoom scaling
+    // When zoomed, the visual size differs from actual canvas size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    return {
+        x: x * scaleX,
+        y: y * scaleY
+    };
+}
 
 // Audio context for sound effects
 let audioContext = null;
@@ -1124,8 +1145,20 @@ const zoomResetBtn = document.getElementById('zoom-reset-btn');
 const zoomDisplay = document.getElementById('zoom-display');
 
 function updateCanvasZoom() {
+    const canvasContainer = canvas.parentElement;
+    
+    // Apply transform to canvas
     canvas.style.transform = `scale(${canvasZoom})`;
     canvas.style.transformOrigin = 'center center';
+    
+    // Add/remove zoomed class to container for better overflow handling
+    if (canvasZoom > 1) {
+        canvasContainer.classList.add('zoomed');
+    } else {
+        canvasContainer.classList.remove('zoomed');
+    }
+    
+    // Update display
     if (zoomDisplay) {
         zoomDisplay.textContent = `${Math.round(canvasZoom * 100)}%`;
     }
@@ -1486,9 +1519,9 @@ function startDrawing(e) {
     // Add visual feedback for mobile - show canvas is active
     canvas.classList.add('drawing-active');
     
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const coords = getCanvasCoordinates(e.clientX, e.clientY);
+    const x = coords.x;
+    const y = coords.y;
     
     if (currentTool === 'fill') {
         playSound('fill');
@@ -1519,9 +1552,9 @@ function startDrawing(e) {
 function draw(e) {
     if (!isDrawing) return;
     
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const coords = getCanvasCoordinates(e.clientX, e.clientY);
+    const x = coords.x;
+    const y = coords.y;
     
     if (currentTool === 'pencil') {
         drawPencil(x, y);
@@ -1540,9 +1573,9 @@ function stopDrawing(e) {
     canvas.classList.remove('drawing-active');
     
     if (e) {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const coords = getCanvasCoordinates(e.clientX, e.clientY);
+        const x = coords.x;
+        const y = coords.y;
         
         if (currentTool === 'circle') {
             drawCircle(shapeStartX, shapeStartY, x, y);
