@@ -771,6 +771,44 @@ document.querySelectorAll('.tool-section').forEach((section, index) => {
     }
 });
 
+// Sidebar toggle functionality
+const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+const mainContent = document.querySelector('.main-content');
+
+function toggleSidebar() {
+    initAudio();
+    playSound('click');
+    
+    const isCollapsed = mainContent.classList.toggle('sidebar-collapsed');
+    
+    // Save state to localStorage
+    localStorage.setItem('sidebar-collapsed', isCollapsed);
+    
+    // Show toast notification
+    if (isCollapsed) {
+        showToast('🎨 Sidebar hidden - More canvas space!');
+    } else {
+        showToast('🛠️ Sidebar visible');
+    }
+}
+
+if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    
+    // Touch handler for mobile
+    sidebarToggleBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSidebar();
+    }, { passive: false });
+}
+
+// Restore sidebar state from localStorage
+const wasSidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+if (wasSidebarCollapsed && mainContent) {
+    mainContent.classList.add('sidebar-collapsed');
+}
+
 // Undo/Redo button event listeners
 const undoBtn = document.getElementById('undo-btn');
 const redoBtn = document.getElementById('redo-btn');
@@ -2846,6 +2884,11 @@ document.addEventListener('keydown', (e) => {
     else if (e.key === '-' || e.key === '_') {
         e.preventDefault();
         zoomOut();
+    }
+    // Sidebar toggle (Tab key)
+    else if (e.key === 'Tab') {
+        e.preventDefault();
+        toggleSidebar();
     }
     // Number keys for tool selection (without modifiers)
     else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {

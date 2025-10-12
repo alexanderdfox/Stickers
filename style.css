@@ -61,6 +61,8 @@ header p {
     background: white;
     border-radius: 16px;
     padding: 24px;
+    position: relative;
+    transition: gap 0.3s ease;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
@@ -75,6 +77,65 @@ header p {
     /* Smooth scrolling on iOS */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar collapsed state */
+.main-content.sidebar-collapsed .toolbar {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Sidebar Toggle Button */
+.sidebar-toggle-btn {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 0 12px 12px 0;
+    width: 36px;
+    height: 80px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2em;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 0;
+    margin-left: calc(280px + 48px + 24px);
+}
+
+.sidebar-toggle-btn:hover {
+    width: 42px;
+    box-shadow: 2px 0 16px rgba(102, 126, 234, 0.5);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.sidebar-toggle-btn:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.main-content.sidebar-collapsed .sidebar-toggle-btn {
+    margin-left: 24px;
+}
+
+.toggle-icon {
+    transition: transform 0.3s ease;
+    display: inline-block;
+    line-height: 1;
+}
+
+.main-content.sidebar-collapsed .toggle-icon {
+    transform: rotate(180deg);
 }
 
 .tool-section {
@@ -1848,6 +1909,18 @@ header p {
     .emoji-categories {
         max-height: 300px;
         -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Sidebar toggle button on mobile */
+    .sidebar-toggle-btn {
+        width: 32px;
+        height: 60px;
+        font-size: 1em;
+        margin-left: calc(280px + 24px + 12px);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn {
+        margin-left: 12px;
     }
     
     /* Larger touch targets for mobile */
