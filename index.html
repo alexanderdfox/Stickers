@@ -72,9 +72,32 @@
                 </div>
 
                 <div class="tool-section">
-                    <h3>📏 Size</h3>
+                    <h3>📏 Brush Size</h3>
                     <input type="range" id="brush-size" min="1" max="50" value="5">
                     <span id="size-display">5</span>
+                </div>
+
+                <div class="tool-section">
+                    <h3>🔍 Canvas Zoom</h3>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out (Press -)">➖</button>
+                        <span id="zoom-display">100%</span>
+                        <button class="zoom-btn" id="zoom-in-btn" title="Zoom In (Press +)">➕</button>
+                    </div>
+                    <button class="action-btn" id="zoom-reset-btn" title="Reset Zoom to 100%" style="width: 100%; margin-top: 8px;">Reset Zoom</button>
+                </div>
+
+                <div class="tool-section">
+                    <h3>📐 Canvas Size</h3>
+                    <select id="canvas-size-selector">
+                        <option value="800x600" selected>800×600 (Default)</option>
+                        <option value="1024x768">1024×768 (Large)</option>
+                        <option value="1280x720">1280×720 (HD)</option>
+                        <option value="1920x1080">1920×1080 (Full HD)</option>
+                        <option value="640x480">640×480 (Small)</option>
+                        <option value="512x512">512×512 (Square)</option>
+                        <option value="1080x1080">1080×1080 (Instagram)</option>
+                    </select>
                 </div>
 
                 <div class="tool-section" id="rotation-section" style="display: none;">
@@ -1100,6 +1123,15 @@
                         <button class="action-btn" id="undo-btn" title="Undo (Ctrl/Cmd+Z)" disabled>↶ Undo</button>
                         <button class="action-btn" id="redo-btn" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷ Redo</button>
                     </div>
+                    <div class="save-section">
+                        <label for="export-size">Export Size:</label>
+                        <select id="export-size-selector">
+                            <option value="1">100% (Canvas Size)</option>
+                            <option value="2">200% (2× Resolution)</option>
+                            <option value="0.5">50% (Smaller File)</option>
+                            <option value="4">400% (4× High-Res)</option>
+                        </select>
+                    </div>
                     <button class="save-btn" id="save-btn" title="Save your masterpiece as PNG">💾 Save as PNG</button>
                     <button class="clear-btn" id="clear-btn" title="Clear active layer with animation">🗑️ Clear All</button>
                     <button class="help-btn" id="help-btn" title="Show keyboard shortcuts and tips (Press F1 or ?)">❓ Help</button>
@@ -1144,6 +1176,16 @@
                                 </div>
                             </div>
                             <div class="help-section">
+                                <h3>🔍 Zoom</h3>
+                                <div class="help-grid">
+                                    <span>+</span><span>Zoom In (25% steps)</span>
+                                    <span>-</span><span>Zoom Out (25% steps)</span>
+                                </div>
+                                <div class="help-list">
+                                    <p>Zoom range: 25% to 300%</p>
+                                </div>
+                            </div>
+                            <div class="help-section">
                                 <h3>🔄 Stamp Rotation</h3>
                                 <div class="help-list">
                                     <p><strong>Desktop:</strong> Mouse wheel up/down to rotate</p>
@@ -1159,6 +1201,10 @@
                                     <p>• Double-click layer name to rename</p>
                                     <p>• Copy/Cut/Paste work on active layer</p>
                                     <p>• All shapes support patterns & effects</p>
+                                    <p>• Zoom in (+) to see details, zoom out (-) for overview</p>
+                                    <p>• Choose canvas size before starting (or change anytime)</p>
+                                    <p>• Export at 2× or 4× for high-resolution prints</p>
+                                    <p>• Canvas: 800×600 default, up to 1920×1080 Full HD</p>
                                 </div>
                             </div>
                         </div>

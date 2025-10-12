@@ -5,16 +5,18 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 ## 🌟 Highlights
 
 - **↶↷ Undo/Redo** - Full history management with 50-step memory and keyboard shortcuts
-- **⌨️ Keyboard Shortcuts** - Number keys (1-9,0) for instant tool switching
-- **🔄 Rotatable Stamps** - Mouse wheel rotation for emoji/text stamps
+- **⌨️ Keyboard Shortcuts** - Number keys (1-9,0,[,]) for instant tool switching
+- **🔄 Rotatable Stamps** - Mouse wheel (desktop) or two-finger twist (mobile) rotation
+- **🔺⭐ 6 Shape Tools** - Circle, Square, Triangle, Star, plus Line and selection tools
+- **📱 iOS & Mobile Optimized** - Full touch support with gestures, toast notifications, and adaptive UI
 - **📑 Professional Layer System** - Multi-layer support with opacity, visibility, and reordering
 - **🖱️ Dynamic Emoji Cursors** - See exactly what you'll stamp with real-time cursor preview
 - **🏁 800+ Stamps** - Including flags from 80+ countries
 - **🎨 Advanced Patterns** - 7 fill patterns with dual-color support
 - **🔤 20 Fonts** - Full typography support with case toggle
-- **📱 Mobile Optimized** - Touch-friendly interface for iOS and Android
 - **🔊 Sound Effects** - Kid Pix-style audio feedback
 - **✨ Special Effects** - Rainbow and sparkle modes for ALL tools
+- **❓ Help System** - Built-in help modal with shortcuts and tips
 
 ## ✨ Features
 
@@ -27,9 +29,17 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 - **💨 Spray Paint** - Spray can effect with random particle distribution (press **5**)
 - **⭕ Circle** - Click and drag to draw circles of any size (press **6**)
 - **⬜ Square/Rectangle** - Click and drag to draw rectangles (press **7**)
-- **🎯 Stamp** - Place emojis and text characters with rotation support (press **8**)
+- **🔺 Triangle** - Click and drag to draw triangles (press **8**)
+- **⭐ Star** - Click and drag to draw 5-pointed stars (press **9**)
+- **🎯 Stamp** - Place emojis and text characters with rotation support (press **0**)
 
 **All tools support Rainbow 🌈 and Sparkle ✨ effects!**
+
+All shape tools (Circle, Square, Triangle, Star) support:
+- All 7 fill patterns
+- Rainbow color-changing strokes
+- Sparkle effects at vertices and center
+- Adjustable size and stroke width
 
 ### 🎨 Color System
 
@@ -82,12 +92,19 @@ Organized in 9 categories:
 
 ### ✂️ Selection & Clipboard
 
-- **⭕ Circle Select** - Select circular regions of any size (press **9**)
-- **⬜ Rectangle Select** - Select rectangular areas (press **0**)
-- **📋 Copy** - Copy selected area to clipboard
-- **✂️ Cut** - Cut selected area (clears to white)
+- **⭕ Circle Select** - Select circular regions of any size (press **[**)
+- **⬜ Rectangle Select** - Select rectangular areas (press **]**)
+- **📋 Copy** - Copy selected area to clipboard (with toast confirmation)
+- **✂️ Cut** - Cut selected area (makes transparent on layer)
 - **📌 Paste** - Paste clipboard content anywhere on canvas
 - Multiple paste support - paste the same selection multiple times!
+
+**Mobile Features:**
+- Thicker selection outlines (3px) for better visibility
+- Toast notifications: "✓ Copied", "✓ Cut", "Tap canvas to paste"
+- Minimum selection size (5px) prevents tiny accidental selections
+- Touch-friendly copy/cut/paste buttons (44px minimum)
+- Works perfectly on active layer with transparency
 
 ### 📏 Size Control
 
@@ -131,16 +148,30 @@ Full history management for worry-free creativity:
 
 - **50-Step History** - Stores up to 50 actions in memory
 - **Undo** - Press **Ctrl/Cmd + Z** or click ↶ Undo button
-- **Redo** - Press **Ctrl/Cmd + Shift + Z** or click ↷ Redo button
+- **Redo** - Press **Ctrl/Cmd + Shift + Z** or **Ctrl + Y** or click ↷ Redo button
 - **Smart State Management** - Automatically saves after:
   - Drawing with any tool (pencil, line, shapes, etc.)
   - Stamping emojis or text
   - Using fill tool
   - Pasting selections
   - Layer operations (add, delete, duplicate, merge, clear)
+  - Cut operations (with transparency)
   - Opacity changes (debounced for performance)
 - **Visual Feedback** - Buttons disabled when no undo/redo available
 - **Layer-Aware** - Restores entire layer state including visibility and opacity
+- **Cross-Platform** - Works on desktop (keyboard) and mobile (buttons)
+
+### ❓ Help System
+
+Built-in help modal for easy reference:
+
+- **Open Help** - Press **F1** or **?** or click **❓ Help** button
+- **Close Help** - Press **Escape** or click outside modal or click **✕**
+- **Comprehensive Guide** - Lists all keyboard shortcuts and gestures
+- **Platform-Specific** - Shows desktop shortcuts and mobile gestures
+- **Beautiful Design** - Purple gradient header with smooth animations
+- **Always Accessible** - Available from any tool or state
+- **Touch-Friendly** - Large close button and scrollable content
 
 ### 💾 File Operations
 
@@ -164,14 +195,45 @@ All sounds are throttled and non-intrusive!
 
 ### 📱 Mobile & iOS Support
 
-- **Touch Events** - Full touch screen support
-- **iOS Optimized** - Works perfectly on iPhone and iPad
-- **Safe Area Support** - Respects notch and bottom bar
-- **Viewport Fixes** - Correct height on all mobile browsers
-- **Larger Touch Targets** - 48px+ buttons for easy tapping
-- **Momentum Scrolling** - Smooth native iOS scrolling
-- **Audio Context** - Properly initialized for iOS
-- **No Zoom/Selection** - Prevents unwanted interactions
+Perfect mobile experience with comprehensive touch support:
+
+#### Touch & Gestures
+- **Single-Touch Drawing** - All drawing tools work smoothly
+- **Two-Finger Rotation** - Twist gesture for stamp rotation (iOS/Android)
+- **Touch-Optimized Buttons** - 44-48px minimum (Apple HIG compliant)
+- **Smart Gesture Detection** - Prevents drawing during two-finger rotation
+- **No Accidental Interactions** - Debounced button presses (500ms)
+- **Slider Touch Control** - No scrolling while adjusting size/opacity
+
+#### iOS-Specific Optimizations
+- **Safari Compatible** - Full iOS Safari support
+- **Color Picker Fix** - Reliable color selection on iOS
+- **Safe Area Support** - Respects notch and bottom bar (env safe-area-inset)
+- **Viewport Fixes** - Correct height with -webkit-fill-available
+- **No Zoom** - Prevented double-tap zoom and pinch zoom
+- **No Text Selection** - Disabled unwanted iOS text selection
+- **Audio Context** - Properly initialized for iOS Web Audio
+- **Overscroll Prevention** - No rubber-band effect or pull-to-refresh
+
+#### Adaptive UI
+- **Responsive Canvas** - Auto-resizes: 800x600→600x450 on mobile
+- **Collapsed Layers** - Layer panel starts minimized on mobile for canvas space
+- **Toast Notifications** - Visual feedback for copy/cut/paste actions
+- **Larger Touch Targets** - All interactive elements 44px+
+- **Momentum Scrolling** - Smooth native -webkit-overflow-scrolling
+- **Better Spacing** - Optimized gaps and padding for touch
+- **Help Modal** - Touch-friendly help system with platform-specific hints
+
+#### Visual Feedback
+- **Selection Outlines** - Thicker (3px) and larger dashes for visibility
+- **Toast Messages** - "✓ Copied", "✓ Cut", "Tap canvas to paste"
+- **Drawing Active State** - Canvas glows when actively drawing
+- **Clear Confirmations** - Prevents accidental clearing
+
+#### Performance
+- **Optimized Canvas** - Smaller size on mobile for better performance
+- **Smooth Scrolling** - Hardware-accelerated lists
+- **Event Throttling** - Sound and render throttling
 - **PWA Ready** - Can be added to home screen
 
 ### 🎨 Professional Design
@@ -188,23 +250,53 @@ All sounds are throttled and non-intrusive!
 ## 🚀 Getting Started
 
 1. Open `index.html` in a modern web browser
-2. Start drawing immediately!
-3. No installation or dependencies required
+2. Start drawing immediately! No installation or dependencies required
+3. **New to EmojiPix?** Press **F1** or **?** or click the **❓ Help** button for shortcuts and tips
+4. **Mobile users:** Layer panel starts collapsed - tap the header to expand
 
-## 💻 Browser Support
+### First Time Users
+- Click any tool to start (or press **1** for Pencil)
+- Try the **🌈 Rainbow** and **✨ Sparkle** effects - they work with ALL tools!
+- Press **F1** or click **❓ Help** to see all keyboard shortcuts
+- On mobile, all buttons are large and touch-friendly (44-48px minimum)
 
-- **Chrome/Edge** - Full support
-- **Firefox** - Full support
-- **Safari** - Full support (including iOS)
-- **Mobile Browsers** - Full touch support
+## 💻 Browser & Platform Support
+
+### Desktop
+- **Chrome/Edge** - Full support (Windows, macOS, Linux)
+- **Firefox** - Full support (Windows, macOS, Linux)
+- **Safari** - Full support (macOS)
+- **All features** - Mouse, keyboard shortcuts, mouse wheel rotation
+
+### Mobile & Tablet
+- **iOS Safari** - Fully optimized (iPhone, iPad)
+- **Chrome Mobile** - Full support (iOS, Android)
+- **Firefox Mobile** - Full support (iOS, Android)
+- **Samsung Internet** - Full support (Android)
+- **Touch gestures** - Single-touch drawing, two-finger rotation
+- **Responsive UI** - Adaptive canvas sizing and controls
+
+### Features by Platform
+| Feature | Desktop | Mobile/Tablet |
+|---------|---------|---------------|
+| All Drawing Tools | ✅ Mouse | ✅ Touch |
+| Keyboard Shortcuts | ✅ 1-9,0,[,],Ctrl+Z | ✅ External Keyboard |
+| Stamp Rotation | ✅ Mouse Wheel | ✅ Two-Finger Twist |
+| Color Pickers | ✅ Click | ✅ Tap (iOS optimized) |
+| Layer Panel | ✅ Full Size | ✅ Collapsible |
+| Copy/Cut/Paste | ✅ Buttons | ✅ Buttons + Toasts |
+| Undo/Redo | ✅ Ctrl+Z/Y | ✅ Buttons |
+| Help Modal | ✅ F1 or ? | ✅ Help Button |
 
 ## 🎯 Usage Tips
 
 ### Creating Patterns
-1. Select a shape tool (Circle or Square)
-2. Choose a fill pattern
+1. Select a shape tool (Circle, Square, Triangle, or Star)
+2. Choose a fill pattern from 7 options
 3. Pick primary and secondary colors
 4. Drag on canvas to create patterned shapes!
+5. Enable Rainbow mode for color-changing effects
+6. Add Sparkle for extra visual flair
 
 ### Text Art
 1. Select letters from the alphabet stamps
@@ -227,12 +319,21 @@ All sounds are throttled and non-intrusive!
 4. Release to draw the line
 
 ### Rotating Stamps
-1. Select the Stamp tool (press **8**)
+**Desktop:**
+1. Select the Stamp tool (press **0**)
 2. Choose any emoji or text character
 3. Hover over canvas and scroll mouse wheel to rotate
 4. Watch the cursor preview update in real-time
 5. Press **R** to reset rotation to 0°
 6. Click to place the rotated stamp
+
+**Mobile:**
+1. Tap the Stamp tool (🎯 Stamp button)
+2. Choose any emoji or text character
+3. Place two fingers on canvas and twist to rotate
+4. Watch the rotation angle display update
+5. Tap Reset button or (with keyboard) press **R** to reset
+6. Tap canvas to place the rotated stamp
 
 ### Working with Layers
 1. Click ➕ to add a new layer
@@ -263,34 +364,43 @@ All sounds are throttled and non-intrusive!
 - **5** - Spray Paint 💨
 - **6** - Circle ⭕
 - **7** - Square ⬜
-- **8** - Stamp 🎯
-- **9** - Circle Select ⭕
-- **0** - Rectangle Select ⬜
+- **8** - Triangle 🔺
+- **9** - Star ⭐
+- **0** - Stamp 🎯
+- **[** - Circle Select ⭕
+- **]** - Rectangle Select ⬜
 
 ### History & Editing
 - **Ctrl/Cmd + Z** - Undo (up to 50 steps)
 - **Ctrl/Cmd + Shift + Z** or **Ctrl + Y** - Redo
 - **R** - Reset stamp rotation to 0° (when stamp tool is active)
 
-### Stamp Tool
-- **Mouse Wheel Up** - Rotate stamp counter-clockwise (15° per notch)
-- **Mouse Wheel Down** - Rotate stamp clockwise (15° per notch)
-- **R** - Reset rotation to 0°
+### Stamp Tool Rotation
+- **Desktop:** Mouse wheel up/down to rotate (15° per notch)
+- **Mobile:** Two-finger twist gesture for smooth rotation
+- **Both:** Press **R** to reset rotation to 0°
+
+### Help & Navigation
+- **F1** or **?** - Open help modal
+- **Escape** - Close help modal
 
 All shortcuts work globally except when typing in input fields.
 
 ## 📝 Technical Details
 
-- **Canvas Size**: 800x600 pixels per layer
-- **Color Depth**: 32-bit RGBA
-- **Layer System**: Multi-layer architecture with transparency and blending
+- **Canvas Size**: 800x600 pixels (desktop), 600x450 pixels (mobile) - auto-responsive
+- **Color Depth**: 32-bit RGBA with full alpha channel support
+- **Layer System**: Multi-layer architecture with transparency, opacity, and blending
 - **History Management**: 50-step undo/redo with full layer state restoration
-- **Keyboard Support**: Number key shortcuts (1-9, 0) + standard editing shortcuts
-- **Dynamic Cursors**: Real-time emoji/character cursor generation with rotation
-- **Stamp Rotation**: 360° rotation with 15° increments via mouse wheel
+- **Keyboard Support**: Number keys (1-9,0,[,]) + standard editing shortcuts (Ctrl+Z, etc.)
+- **Dynamic Cursors**: Real-time emoji/character cursor generation with rotation preview
+- **Stamp Rotation**: 360° rotation - mouse wheel (desktop) or two-finger gesture (mobile)
 - **Audio**: Web Audio API for sound synthesis with pitch variation
 - **Patterns**: Dynamic canvas pattern generation with rainbow support
+- **Touch Gestures**: Single-touch drawing, two-finger rotation, pinch-free interaction
 - **Performance**: Optimized for smooth 60fps drawing with multiple layers
+- **Responsive**: Adaptive canvas sizing, collapsible panels, touch-optimized controls
+- **Cross-Platform**: Desktop (mouse+keyboard), Mobile (touch+gestures), Tablet (hybrid)
 
 ## 🛠️ Built With
 
@@ -302,22 +412,37 @@ All shortcuts work globally except when typing in input fields.
 ## 🎮 Kid Pix Inspiration
 
 This project is inspired by the classic Kid Pix drawing program, featuring:
-- Fun sound effects with Web Audio API
+- Fun sound effects with Web Audio API (pitch-shifting, chords)
 - 800+ emoji stamps (instead of classic stamps)
 - Animated wipe-down clear effect
 - Spray paint tool with particle effects
 - Easy-to-use colorful interface
-- Modern enhancements:
-  - **Undo/Redo system** with 50-step history
-  - **Keyboard shortcuts** for instant tool switching
-  - **Rotatable stamps** with mouse wheel control
-  - **Rainbow & Sparkle** effects for ALL tools
-  - Professional layer system
-  - Dynamic emoji cursors with rotation
-  - Advanced pattern fills
-  - Mobile touch support
-  - 20 font choices
-- Creative freedom for all ages!
+- Modern enhancements that go far beyond the original:
+  - **Undo/Redo system** with 50-step history (Ctrl+Z/Y)
+  - **Keyboard shortcuts** for instant tool switching (1-9,0,[,])
+  - **Rotatable stamps** - mouse wheel (desktop) or two-finger twist (mobile)
+  - **6 shape tools** - Circle, Square, Triangle, Star, plus Line
+  - **Rainbow & Sparkle** effects for ALL tools (not just some!)
+  - **Professional layer system** with opacity, visibility, reordering
+  - **Dynamic emoji cursors** with live rotation preview
+  - **Advanced pattern fills** - 7 patterns with dual colors
+  - **Full iOS & Android support** - touch gestures, adaptive UI, toast feedback
+  - **Built-in help system** - Press F1 or ? for shortcuts
+  - **Copy/Cut/Paste** with layer awareness and transparency
+  - **20 font choices** with case toggle for text stamps
+  - **Responsive design** - Works on phone, tablet, and desktop
+  - **Visual feedback** - Toast notifications, selection outlines, drawing glow
+- Creative freedom for all ages, on any device!
+
+### What Makes EmojiPix Special
+- **Cross-platform perfection** - Identical experience on desktop and mobile
+- **Layer-aware operations** - Copy, paste, and all edits respect layers
+- **Smart touch detection** - Two-finger gestures don't interfere with drawing
+- **Comprehensive undo** - Every action tracked, including layer changes
+- **Effect versatility** - Rainbow and Sparkle work with every single tool
+- **Accessibility** - Large touch targets (44-48px), clear visual feedback
+- **No framework bloat** - Pure vanilla JavaScript for speed
+- **Offline ready** - Works without internet after first load
 
 ## 📄 License
 

@@ -2,8 +2,18 @@
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size - responsive for mobile
-function setCanvasSize() {
+// Layer Management - declare early so setCanvasSize can access it
+let layers = [];
+let activeLayerIndex = 0;
+let layerIdCounter = 0;
+
+// Set initial canvas size - responsive for mobile
+let userSetCanvasSize = false; // Track if user manually set canvas size
+
+function setInitialCanvasSize() {
+    // Don't auto-resize if user manually set a size
+    if (userSetCanvasSize) return;
+    
     if (window.innerWidth <= 768) {
         // Mobile: smaller canvas for better performance
         const maxWidth = Math.min(600, window.innerWidth - 40);
@@ -11,7 +21,7 @@ function setCanvasSize() {
         canvas.width = maxWidth;
         canvas.height = maxHeight;
     } else {
-        // Desktop: full size
+        // Desktop: default size
         canvas.width = 800;
         canvas.height = 600;
     }
@@ -19,74 +29,51 @@ function setCanvasSize() {
     // Set CSS size to match for proper rendering on high-DPI displays
     canvas.style.width = canvas.width + 'px';
     canvas.style.height = canvas.height + 'px';
-    
-    // Reinitialize layers if they exist
-    if (layers.length > 0) {
-        // Recreate layers with new canvas size
-        const oldLayers = layers.map(layer => ({
-            name: layer.name,
-            visible: layer.visible,
-            opacity: layer.opacity,
-            imageData: layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height)
-        }));
+}
+
+setInitialCanvasSize();
+
+// Update canvas size selector to match current size
+function updateCanvasSizeSelector() {
+    const canvasSizeSelector = document.getElementById('canvas-size-selector');
+    if (canvasSizeSelector) {
+        const currentSize = `${canvas.width}x${canvas.height}`;
         
-        layers = oldLayers.map(layerData => {
-            const layerCanvas = document.createElement('canvas');
-            layerCanvas.width = canvas.width;
-            layerCanvas.height = canvas.height;
-            const layerCtx = layerCanvas.getContext('2d');
-            
-            // Fill with white if it's the background layer
-            if (layerData.name === 'Background') {
-                layerCtx.fillStyle = 'white';
-                layerCtx.fillRect(0, 0, canvas.width, canvas.height);
-            }
-            
-            // Draw old content (might be scaled)
-            try {
-                layerCtx.putImageData(layerData.imageData, 0, 0);
-            } catch (e) {
-                // If size mismatch, just skip
-                console.log('Canvas resized');
-            }
-            
-            return {
-                id: layerIdCounter++,
-                name: layerData.name,
-                canvas: layerCanvas,
-                ctx: layerCtx,
-                visible: layerData.visible,
-                opacity: layerData.opacity
-            };
-        });
+        // Check if current size matches an option
+        const options = Array.from(canvasSizeSelector.options);
+        const matchingOption = options.find(opt => opt.value === currentSize);
         
-        renderCanvas();
-        updateLayersList();
+        if (matchingOption) {
+            canvasSizeSelector.value = currentSize;
+        } else {
+            // Add custom option if size doesn't match
+            const customOption = document.createElement('option');
+            customOption.value = currentSize;
+            customOption.textContent = `${canvas.width}×${canvas.height} (Current)`;
+            customOption.selected = true;
+            canvasSizeSelector.insertBefore(customOption, canvasSizeSelector.firstChild);
+        }
     }
 }
 
-setCanvasSize();
-
-// Re-initialize on resize for responsive behavior
+// Re-initialize on resize for responsive behavior (only if user hasn't set custom size)
 let resizeTimeout;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-        const oldWidth = canvas.width;
-        const oldHeight = canvas.height;
-        setCanvasSize();
-        
-        // Only reinit if size actually changed
-        if (oldWidth !== canvas.width || oldHeight !== canvas.height) {
-            setViewportHeight();
+        if (!userSetCanvasSize) {
+            const oldWidth = canvas.width;
+            const oldHeight = canvas.height;
+            setInitialCanvasSize();
+            
+            // Only reinit if size actually changed
+            if (oldWidth !== canvas.width || oldHeight !== canvas.height) {
+                setViewportHeight();
+                updateCanvasSizeSelector();
+            }
         }
     }, 250);
 });
-
-// Layer Management
-let layers = [];
-let activeLayerIndex = 0;
-let layerIdCounter = 0;
 
 // History Management for Undo/Redo
 let history = [];
@@ -109,6 +96,8 @@ let secondaryColor = '#FFFFFF';
 let shapeStartX = 0;
 let shapeStartY = 0;
 let stampRotation = 0; // Rotation angle in degrees for stamp tool
+let canvasZoom = 1; // Canvas zoom level (1 = 100%)
+let exportScale = 1; // Export resolution multiplier
 
 // Selection and clipboard
 let clipboard = null;
@@ -632,6 +621,9 @@ function updateHistoryButtons() {
 // Initialize layers
 initializeLayers();
 
+// Update canvas size selector to match initial size
+updateCanvasSizeSelector();
+
 // Save initial state to history
 saveHistory();
 
@@ -1013,16 +1005,25 @@ layerOpacitySlider.addEventListener('change', (e) => {
     handleOpacityChange(e.target.value);
 });
 
-// Save button - merge all layers
+// Save button - merge all layers with export scaling
 document.getElementById('save-btn').addEventListener('click', () => {
     initAudio();
     playSound('save');
     
+    // Get export scale
+    const exportSizeSelector = document.getElementById('export-size-selector');
+    const exportScale = parseFloat(exportSizeSelector.value);
+    
     // Create a temporary canvas to merge all layers
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
+    tempCanvas.width = canvas.width * exportScale;
+    tempCanvas.height = canvas.height * exportScale;
     const tempCtx = tempCanvas.getContext('2d');
+    
+    // Scale context if needed
+    if (exportScale !== 1) {
+        tempCtx.scale(exportScale, exportScale);
+    }
     
     // Draw all visible layers
     for (let i = layers.length - 1; i >= 0; i--) {
@@ -1038,7 +1039,8 @@ document.getElementById('save-btn').addEventListener('click', () => {
     // Create a temporary link element
     const link = document.createElement('a');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    link.download = `emojipix-${timestamp}.png`;
+    const scaleSuffix = exportScale !== 1 ? `-${exportScale}x` : '';
+    link.download = `emojipix-${timestamp}${scaleSuffix}.png`;
     
     // Convert merged canvas to PNG data URL
     link.href = tempCanvas.toDataURL('image/png');
@@ -1046,8 +1048,11 @@ document.getElementById('save-btn').addEventListener('click', () => {
     // Trigger download
     link.click();
     
-    // Optional: Show a fun confirmation
-    console.log('🎨 Masterpiece saved!');
+    // Show confirmation with size info
+    const width = canvas.width * exportScale;
+    const height = canvas.height * exportScale;
+    showToast(`💾 Saved ${width}×${height}px PNG!`);
+    console.log(`🎨 Masterpiece saved at ${width}×${height}px!`);
 });
 
 // Clear button
@@ -1059,6 +1064,136 @@ document.getElementById('clear-btn').addEventListener('click', () => {
         clearCanvasWithAnimation();
     }
 });
+
+// Zoom controls
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomResetBtn = document.getElementById('zoom-reset-btn');
+const zoomDisplay = document.getElementById('zoom-display');
+
+function updateCanvasZoom() {
+    canvas.style.transform = `scale(${canvasZoom})`;
+    canvas.style.transformOrigin = 'center center';
+    if (zoomDisplay) {
+        zoomDisplay.textContent = `${Math.round(canvasZoom * 100)}%`;
+    }
+}
+
+function zoomIn() {
+    if (canvasZoom < 3) {
+        canvasZoom = Math.min(3, canvasZoom + 0.25);
+        updateCanvasZoom();
+        initAudio();
+        playSound('click');
+    }
+}
+
+function zoomOut() {
+    if (canvasZoom > 0.25) {
+        canvasZoom = Math.max(0.25, canvasZoom - 0.25);
+        updateCanvasZoom();
+        initAudio();
+        playSound('click');
+    }
+}
+
+function resetZoom() {
+    canvasZoom = 1;
+    updateCanvasZoom();
+    initAudio();
+    playSound('click');
+}
+
+if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', zoomIn);
+}
+
+if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', zoomOut);
+}
+
+if (zoomResetBtn) {
+    zoomResetBtn.addEventListener('click', resetZoom);
+}
+
+// Canvas size selector
+const canvasSizeSelector = document.getElementById('canvas-size-selector');
+if (canvasSizeSelector) {
+    canvasSizeSelector.addEventListener('change', (e) => {
+        initAudio();
+        playSound('click');
+        
+        const [width, height] = e.target.value.split('x').map(Number);
+        
+        if (confirm(`🎨 Change canvas size to ${width}×${height}? This will preserve your layers but may crop or add space.`)) {
+            changeCanvasSize(width, height);
+            showToast(`Canvas resized to ${width}×${height}px`);
+        } else {
+            // Revert selection
+            const currentSize = `${canvas.width}x${canvas.height}`;
+            e.target.value = currentSize;
+        }
+    });
+}
+
+function changeCanvasSize(newWidth, newHeight) {
+    // Mark that user has set a custom size
+    userSetCanvasSize = true;
+    
+    // Save current layer data
+    const oldLayers = layers.map(layer => ({
+        name: layer.name,
+        visible: layer.visible,
+        opacity: layer.opacity,
+        imageData: layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height),
+        oldWidth: layer.canvas.width,
+        oldHeight: layer.canvas.height
+    }));
+    
+    // Update canvas size
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+    canvas.style.width = newWidth + 'px';
+    canvas.style.height = newHeight + 'px';
+    
+    // Recreate layers with new size
+    layers = oldLayers.map(layerData => {
+        const layerCanvas = document.createElement('canvas');
+        layerCanvas.width = newWidth;
+        layerCanvas.height = newHeight;
+        const layerCtx = layerCanvas.getContext('2d');
+        
+        // Fill background with white if it's the background layer
+        if (layerData.name === 'Background') {
+            layerCtx.fillStyle = 'white';
+            layerCtx.fillRect(0, 0, newWidth, newHeight);
+        }
+        
+        // Create a temporary canvas to hold old content
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = layerData.oldWidth;
+        tempCanvas.height = layerData.oldHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.putImageData(layerData.imageData, 0, 0);
+        
+        // Draw old content at original size (top-left aligned)
+        layerCtx.drawImage(tempCanvas, 0, 0);
+        
+        return {
+            id: layerIdCounter++,
+            name: layerData.name,
+            canvas: layerCanvas,
+            ctx: layerCtx,
+            visible: layerData.visible,
+            opacity: layerData.opacity
+        };
+    });
+    
+    renderCanvas();
+    updateLayersList();
+    updateCanvasSizeSelector();
+    saveHistory();
+}
 
 // Help button and modal
 const helpBtn = document.getElementById('help-btn');
@@ -2302,6 +2437,15 @@ document.addEventListener('keydown', (e) => {
              (e.ctrlKey && e.key === 'y')) {
         e.preventDefault();
         redo();
+    }
+    // Zoom shortcuts (+ and -)
+    else if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        zoomIn();
+    }
+    else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        zoomOut();
     }
     // Number keys for tool selection (without modifiers)
     else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
