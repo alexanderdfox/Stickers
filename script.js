@@ -711,10 +711,11 @@ if (copyBtn) {
         if (selectionData) {
             initAudio();
             playSound('click');
+            // Copy the selection data and bounds to clipboard
             clipboard = {
                 imageData: selectionData,
                 type: selectionType,
-                bounds: selectionBounds
+                bounds: { ...selectionBounds }  // Create a copy of bounds object
             };
             pasteBtn.disabled = false;
             selectionData = null;
@@ -728,10 +729,11 @@ if (cutBtn) {
         if (selectionData) {
             initAudio();
             playSound('click');
+            // Copy the selection data and bounds to clipboard
             clipboard = {
                 imageData: selectionData,
                 type: selectionType,
-                bounds: selectionBounds
+                bounds: { ...selectionBounds }  // Create a copy of bounds object
             };
             pasteBtn.disabled = false;
             
@@ -739,6 +741,9 @@ if (cutBtn) {
             clearSelection();
             selectionData = null;
             selectionBounds = null;
+            
+            // Save history after cutting
+            saveHistory();
         }
     });
 }
@@ -890,7 +895,8 @@ canvas.addEventListener('mousedown', startDrawing);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDrawing);
 canvas.addEventListener('mouseout', (e) => {
-    if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'line' || 
+    if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'triangle' || 
+        currentTool === 'star' || currentTool === 'line' || 
         currentTool === 'select-circle' || currentTool === 'select-square') {
         // Don't complete action if mouse leaves canvas
         if (isDrawing) {
@@ -994,7 +1000,8 @@ function startDrawing(e) {
         pasteClipboard(x, y);
         saveHistory();
         isDrawing = false;
-    } else if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'line' || 
+    } else if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'triangle' || 
+               currentTool === 'star' || currentTool === 'line' || 
                currentTool === 'select-circle' || currentTool === 'select-square') {
         // Store starting position for shapes, lines, and selections
         shapeStartX = x;
@@ -1034,6 +1041,12 @@ function stopDrawing(e) {
             playSound('stamp');
         } else if (currentTool === 'square') {
             drawSquare(shapeStartX, shapeStartY, x, y);
+            playSound('stamp');
+        } else if (currentTool === 'triangle') {
+            drawTriangle(shapeStartX, shapeStartY, x, y);
+            playSound('stamp');
+        } else if (currentTool === 'star') {
+            drawStar(shapeStartX, shapeStartY, x, y);
             playSound('stamp');
         } else if (currentTool === 'line') {
             drawLine(shapeStartX, shapeStartY, x, y);
@@ -1408,6 +1421,107 @@ function drawSquare(startX, startY, endX, endY) {
     updateLayersList();
 }
 
+function drawTriangle(startX, startY, endX, endY) {
+    const activeCtx = getActiveContext();
+    const width = endX - startX;
+    const height = endY - startY;
+    
+    // Calculate triangle points (equilateral-ish triangle)
+    const topX = startX + width / 2;
+    const topY = startY;
+    const bottomLeftX = startX;
+    const bottomLeftY = endY;
+    const bottomRightX = endX;
+    const bottomRightY = endY;
+    
+    activeCtx.beginPath();
+    activeCtx.moveTo(topX, topY);
+    activeCtx.lineTo(bottomLeftX, bottomLeftY);
+    activeCtx.lineTo(bottomRightX, bottomRightY);
+    activeCtx.closePath();
+    
+    const fillStyle = createPattern();
+    if (fillStyle !== null) {
+        activeCtx.fillStyle = fillStyle;
+        activeCtx.fill();
+    }
+    
+    // Apply rainbow mode to stroke
+    if (rainbowMode) {
+        rainbowHue = (rainbowHue + 10) % 360;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+    } else {
+        activeCtx.strokeStyle = currentColor;
+    }
+    activeCtx.lineWidth = Math.max(brushSize / 2, 2);
+    activeCtx.stroke();
+    
+    if (sparkleMode) {
+        // Add sparkles at triangle points
+        addSparkles(topX, topY);
+        addSparkles(bottomLeftX, bottomLeftY);
+        addSparkles(bottomRightX, bottomRightY);
+        addSparkles(startX + width/2, startY + height/2);
+    }
+    
+    renderCanvas();
+    updateLayersList();
+}
+
+function drawStar(startX, startY, endX, endY) {
+    const activeCtx = getActiveContext();
+    const centerX = (startX + endX) / 2;
+    const centerY = (startY + endY) / 2;
+    const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)) / 2;
+    const innerRadius = radius * 0.4; // Inner radius for star points
+    const points = 5;
+    
+    activeCtx.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+        const angle = (i * Math.PI) / points - Math.PI / 2;
+        const r = i % 2 === 0 ? radius : innerRadius;
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        
+        if (i === 0) {
+            activeCtx.moveTo(x, y);
+        } else {
+            activeCtx.lineTo(x, y);
+        }
+    }
+    activeCtx.closePath();
+    
+    const fillStyle = createPattern();
+    if (fillStyle !== null) {
+        activeCtx.fillStyle = fillStyle;
+        activeCtx.fill();
+    }
+    
+    // Apply rainbow mode to stroke
+    if (rainbowMode) {
+        rainbowHue = (rainbowHue + 10) % 360;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+    } else {
+        activeCtx.strokeStyle = currentColor;
+    }
+    activeCtx.lineWidth = Math.max(brushSize / 2, 2);
+    activeCtx.stroke();
+    
+    if (sparkleMode) {
+        // Add sparkles at star points
+        for (let i = 0; i < points; i++) {
+            const angle = (i * 2 * Math.PI) / points - Math.PI / 2;
+            const x = centerX + radius * Math.cos(angle);
+            const y = centerY + radius * Math.sin(angle);
+            addSparkles(x, y);
+        }
+        addSparkles(centerX, centerY);
+    }
+    
+    renderCanvas();
+    updateLayersList();
+}
+
 function drawLine(startX, startY, endX, endY) {
     const activeCtx = getActiveContext();
     activeCtx.beginPath();
@@ -1441,8 +1555,9 @@ function selectCircle(startX, startY, endX, endY) {
     const width = Math.min(canvas.width - left, Math.ceil(radius * 2));
     const height = Math.min(canvas.height - top, Math.ceil(radius * 2));
     
-    // Get the image data
-    const imageData = ctx.getImageData(left, top, width, height);
+    // Get the image data from the active layer
+    const activeCtx = getActiveContext();
+    const imageData = activeCtx.getImageData(left, top, width, height);
     
     // Create a mask for the circle
     const maskCanvas = document.createElement('canvas');
@@ -1468,7 +1583,7 @@ function selectCircle(startX, startY, endX, endY) {
     selectionType = 'circle';
     selectionBounds = { x: startX, y: startY, radius: radius, left: left, top: top, width: width, height: height };
     
-    // Draw selection outline
+    // Draw selection outline on main canvas for visualization
     ctx.save();
     ctx.strokeStyle = '#667eea';
     ctx.lineWidth = 2;
@@ -1485,14 +1600,15 @@ function selectSquare(startX, startY, endX, endY) {
     const width = Math.abs(endX - startX);
     const height = Math.abs(endY - startY);
     
-    // Get the image data
-    const imageData = ctx.getImageData(left, top, width, height);
+    // Get the image data from the active layer
+    const activeCtx = getActiveContext();
+    const imageData = activeCtx.getImageData(left, top, width, height);
     
     selectionData = imageData;
     selectionType = 'square';
     selectionBounds = { left: left, top: top, width: width, height: height };
     
-    // Draw selection outline
+    // Draw selection outline on main canvas for visualization
     ctx.save();
     ctx.strokeStyle = '#667eea';
     ctx.lineWidth = 2;
@@ -1504,22 +1620,31 @@ function selectSquare(startX, startY, endX, endY) {
 function clearSelection() {
     if (!selectionBounds) return;
     
-    ctx.fillStyle = 'white';
+    const activeCtx = getActiveContext();
+    
+    // Clear the selected area on the active layer (make it transparent)
+    activeCtx.save();
+    activeCtx.globalCompositeOperation = 'destination-out';
+    
     if (selectionType === 'circle') {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(selectionBounds.x, selectionBounds.y, selectionBounds.radius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillRect(selectionBounds.left, selectionBounds.top, selectionBounds.width, selectionBounds.height);
-        ctx.restore();
+        activeCtx.beginPath();
+        activeCtx.arc(selectionBounds.x, selectionBounds.y, selectionBounds.radius, 0, Math.PI * 2);
+        activeCtx.fill();
     } else if (selectionType === 'square') {
-        ctx.fillRect(selectionBounds.left, selectionBounds.top, selectionBounds.width, selectionBounds.height);
+        activeCtx.fillRect(selectionBounds.left, selectionBounds.top, selectionBounds.width, selectionBounds.height);
     }
+    
+    activeCtx.restore();
+    
+    // Re-render the canvas to show the changes
+    renderCanvas();
+    updateLayersList();
 }
 
 function pasteClipboard(x, y) {
     if (!clipboard) return;
     
+    const activeCtx = getActiveContext();
     const imageData = clipboard.imageData;
     const bounds = clipboard.bounds;
     
@@ -1527,8 +1652,12 @@ function pasteClipboard(x, y) {
     let pasteX = x - bounds.width / 2;
     let pasteY = y - bounds.height / 2;
     
-    // Put the image data at the new position
-    ctx.putImageData(imageData, pasteX, pasteY);
+    // Put the image data at the new position on the active layer
+    activeCtx.putImageData(imageData, pasteX, pasteY);
+    
+    // Re-render the canvas to show the changes
+    renderCanvas();
+    updateLayersList();
     
     if (sparkleMode) {
         addSparkles(x, y);
@@ -1661,6 +1790,8 @@ function updateCursor() {
         'line': 'crosshair',
         'circle': 'crosshair',
         'square': 'crosshair',
+        'triangle': 'crosshair',
+        'star': 'crosshair',
         'fill': 'cell',
         'spray': 'crosshair',
         'select-circle': 'crosshair',
@@ -1815,12 +1946,18 @@ document.addEventListener('keydown', (e) => {
                 toolToSelect = 'square';
                 break;
             case '8':
-                toolToSelect = 'stamp';
+                toolToSelect = 'triangle';
                 break;
             case '9':
-                toolToSelect = 'select-circle';
+                toolToSelect = 'star';
                 break;
             case '0':
+                toolToSelect = 'stamp';
+                break;
+            case '[':
+                toolToSelect = 'select-circle';
+                break;
+            case ']':
                 toolToSelect = 'select-square';
                 break;
             case 'r':
