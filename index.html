@@ -22,7 +22,11 @@
             <!-- Toolbar -->
             <div class="toolbar">
                 <div class="tool-section">
-                    <h3>🛠️ Tools</h3>
+                    <h3 class="section-header">
+                        <span>🛠️ Tools</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <button class="tool-btn active" data-tool="pencil" data-shortcut="1" title="Pencil (Press 1)">✏️ Pencil</button>
                     <button class="tool-btn" data-tool="line" data-shortcut="2" title="Line (Press 2)">📏 Line</button>
                     <button class="tool-btn" data-tool="eraser" data-shortcut="3" title="Eraser (Press 3)">🧽 Eraser</button>
@@ -33,10 +37,15 @@
                     <button class="tool-btn" data-tool="triangle" data-shortcut="8" title="Triangle (Press 8)">🔺 Triangle</button>
                     <button class="tool-btn" data-tool="star" data-shortcut="9" title="Star (Press 9)">⭐ Star</button>
                     <button class="tool-btn" data-tool="stamp" data-shortcut="0" title="Stamp (Press 0)">🎯 Stamp</button>
+                    </div>
                 </div>
                 
                 <div class="tool-section">
-                    <h3>✂️ Selection</h3>
+                    <h3 class="section-header">
+                        <span>✂️ Selection</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <button class="tool-btn" data-tool="select-circle" data-shortcut="[" title="Select Circle (Press [)">⭕ Select</button>
                     <button class="tool-btn" data-tool="select-square" data-shortcut="]" title="Select Rectangle (Press ])">⬜ Select</button>
                     <div class="selection-actions">
@@ -44,10 +53,15 @@
                         <button class="action-btn" id="cut-btn" title="Cut">✂️ Cut</button>
                         <button class="action-btn" id="paste-btn" title="Paste" disabled>📌 Paste</button>
                     </div>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>🎨 Colors</h3>
+                    <h3 class="section-header">
+                        <span>🎨 Colors</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <div class="color-wheel-container">
                         <label for="color-picker">🎨 Color Wheel</label>
                         <input type="color" id="color-picker" value="#FF0000" title="Pick any color">
@@ -69,26 +83,41 @@
                         <button class="color-btn" data-color="#00FFFF" style="background: #00FFFF;" title="Cyan"></button>
                         <button class="color-btn" data-color="#A52A2A" style="background: #A52A2A;" title="Brown"></button>
                     </div>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>📏 Brush Size</h3>
+                    <h3 class="section-header">
+                        <span>📏 Brush Size</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <input type="range" id="brush-size" min="1" max="50" value="5">
                     <span id="size-display">5</span>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>🔍 Canvas Zoom</h3>
+                    <h3 class="section-header">
+                        <span>🔍 Canvas Zoom</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <div class="zoom-controls">
                         <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out (Press -)">➖</button>
                         <span id="zoom-display">100%</span>
                         <button class="zoom-btn" id="zoom-in-btn" title="Zoom In (Press +)">➕</button>
                     </div>
                     <button class="action-btn" id="zoom-reset-btn" title="Reset Zoom to 100%" style="width: 100%; margin-top: 8px;">Reset Zoom</button>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>📐 Canvas Size</h3>
+                    <h3 class="section-header">
+                        <span>📐 Canvas Size</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <select id="canvas-size-selector">
                         <option value="800x600" selected>800×600 (Default)</option>
                         <option value="1024x768">1024×768 (Large)</option>
@@ -98,10 +127,15 @@
                         <option value="512x512">512×512 (Square)</option>
                         <option value="1080x1080">1080×1080 (Instagram)</option>
                     </select>
+                    </div>
                 </div>
 
                 <div class="tool-section" id="rotation-section" style="display: none;">
-                    <h3>🔄 Stamp Rotation</h3>
+                    <h3 class="section-header">
+                        <span>🔄 Stamp Rotation</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <div class="rotation-display">
                         <span id="rotation-angle">0°</span>
                         <div class="rotation-hint">
@@ -111,10 +145,15 @@
                         </div>
                     </div>
                     <button class="action-btn" id="reset-rotation-btn" title="Reset Rotation (Press R)" style="width: 100%; margin-top: 8px;">↻ Reset</button>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>🎨 Fill Pattern</h3>
+                    <h3 class="section-header">
+                        <span>🎨 Fill Pattern</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <div class="pattern-grid">
                         <button class="pattern-btn active" data-pattern="solid" title="Solid">
                             <div class="pattern-preview solid"></div>
@@ -142,10 +181,15 @@
                         <label for="secondary-color">Secondary Color</label>
                         <input type="color" id="secondary-color" value="#FFFFFF" title="Pattern color 2">
                     </div>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>🔤 Font Style</h3>
+                    <h3 class="section-header">
+                        <span>🔤 Font Style</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <select id="font-selector">
                         <option value="Arial">Arial</option>
                         <option value="Helvetica">Helvetica</option>
@@ -173,10 +217,15 @@
                         <button class="case-btn" data-case="lower" title="Lowercase">abc</button>
                     </div>
                     <div class="font-preview" id="font-preview">ABC abc 123</div>
+                    </div>
                 </div>
 
                 <div class="tool-section emoji-stamps">
-                    <h3>😊 Emoji Stamps</h3>
+                    <h3 class="section-header">
+                        <span>😊 Emoji Stamps</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <div class="emoji-categories">
                         <div class="emoji-category">
                             <h4>🔤 Letters & Numbers</h4>
@@ -1113,10 +1162,15 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
 
                 <div class="tool-section">
-                    <h3>✨ Effects</h3>
+                    <h3 class="section-header">
+                        <span>✨ Effects</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
                     <button class="effect-btn" data-effect="rainbow" title="Rainbow Mode (works with all tools!)">🌈 Rainbow</button>
                     <button class="effect-btn" data-effect="sparkle" title="Sparkle (works with all tools!)">✨ Sparkle</button>
                     <div class="history-actions">
@@ -1135,6 +1189,7 @@
                     <button class="save-btn" id="save-btn" title="Save your masterpiece as PNG">💾 Save as PNG</button>
                     <button class="clear-btn" id="clear-btn" title="Clear active layer with animation">🗑️ Clear All</button>
                     <button class="help-btn" id="help-btn" title="Show keyboard shortcuts and tips (Press F1 or ?)">❓ Help</button>
+                    </div>
                 </div>
             </div>
 

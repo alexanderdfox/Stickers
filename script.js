@@ -634,6 +634,49 @@ updateCanvasSizeSelector();
 // Save initial state to history
 saveHistory();
 
+// Setup collapsible sections
+document.querySelectorAll('.section-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+        // Don't trigger if clicking the collapse button directly
+        if (e.target.classList.contains('section-collapse-btn')) {
+            return;
+        }
+        
+        const toolSection = header.closest('.tool-section');
+        toggleSection(toolSection);
+    });
+});
+
+document.querySelectorAll('.section-collapse-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        initAudio();
+        playSound('click');
+        
+        const toolSection = btn.closest('.tool-section');
+        toggleSection(toolSection);
+    });
+});
+
+function toggleSection(section) {
+    if (section) {
+        section.classList.toggle('collapsed');
+        
+        // Save collapsed state to localStorage
+        const sectionIndex = Array.from(section.parentElement.children).indexOf(section);
+        const isCollapsed = section.classList.contains('collapsed');
+        localStorage.setItem(`section-${sectionIndex}-collapsed`, isCollapsed);
+    }
+}
+
+// Restore collapsed state from localStorage
+document.querySelectorAll('.tool-section').forEach((section, index) => {
+    const wasCollapsed = localStorage.getItem(`section-${index}-collapsed`) === 'true';
+    if (wasCollapsed) {
+        section.classList.add('collapsed');
+    }
+});
+
 // Undo/Redo button event listeners
 const undoBtn = document.getElementById('undo-btn');
 const redoBtn = document.getElementById('redo-btn');
