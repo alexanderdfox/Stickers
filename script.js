@@ -15,9 +15,73 @@ function setCanvasSize() {
         canvas.width = 800;
         canvas.height = 600;
     }
+    
+    // Set CSS size to match for proper rendering on high-DPI displays
+    canvas.style.width = canvas.width + 'px';
+    canvas.style.height = canvas.height + 'px';
+    
+    // Reinitialize layers if they exist
+    if (layers.length > 0) {
+        // Recreate layers with new canvas size
+        const oldLayers = layers.map(layer => ({
+            name: layer.name,
+            visible: layer.visible,
+            opacity: layer.opacity,
+            imageData: layer.ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height)
+        }));
+        
+        layers = oldLayers.map(layerData => {
+            const layerCanvas = document.createElement('canvas');
+            layerCanvas.width = canvas.width;
+            layerCanvas.height = canvas.height;
+            const layerCtx = layerCanvas.getContext('2d');
+            
+            // Fill with white if it's the background layer
+            if (layerData.name === 'Background') {
+                layerCtx.fillStyle = 'white';
+                layerCtx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Draw old content (might be scaled)
+            try {
+                layerCtx.putImageData(layerData.imageData, 0, 0);
+            } catch (e) {
+                // If size mismatch, just skip
+                console.log('Canvas resized');
+            }
+            
+            return {
+                id: layerIdCounter++,
+                name: layerData.name,
+                canvas: layerCanvas,
+                ctx: layerCtx,
+                visible: layerData.visible,
+                opacity: layerData.opacity
+            };
+        });
+        
+        renderCanvas();
+        updateLayersList();
+    }
 }
 
 setCanvasSize();
+
+// Re-initialize on resize for responsive behavior
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        const oldWidth = canvas.width;
+        const oldHeight = canvas.height;
+        setCanvasSize();
+        
+        // Only reinit if size actually changed
+        if (oldWidth !== canvas.width || oldHeight !== canvas.height) {
+            setViewportHeight();
+        }
+    }, 250);
+});
 
 // Layer Management
 let layers = [];
@@ -996,6 +1060,42 @@ document.getElementById('clear-btn').addEventListener('click', () => {
     }
 });
 
+// Help button and modal
+const helpBtn = document.getElementById('help-btn');
+const helpModal = document.getElementById('help-modal');
+const helpCloseBtn = document.getElementById('help-close-btn');
+
+if (helpBtn) {
+    helpBtn.addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        if (helpModal) {
+            helpModal.style.display = 'flex';
+        }
+    });
+}
+
+if (helpCloseBtn) {
+    helpCloseBtn.addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        if (helpModal) {
+            helpModal.style.display = 'none';
+        }
+    });
+}
+
+// Close help modal when clicking outside
+if (helpModal) {
+    helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+            initAudio();
+            playSound('click');
+            helpModal.style.display = 'none';
+        }
+    });
+}
+
 function clearCanvasWithAnimation() {
     const activeCtx = getActiveContext();
     let y = 0;
@@ -1034,24 +1134,42 @@ canvas.addEventListener('mouseout', (e) => {
 // Touch events for mobile (iOS compatible)
 let lastTouchX = 0;
 let lastTouchY = 0;
+let isTwoFingerGesture = false;
 
 canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
     initAudio();
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    lastTouchX = touch.clientX;
-    lastTouchY = touch.clientY;
     
-    const mouseEvent = new MouseEvent('mousedown', {
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-        bubbles: true
-    });
-    canvas.dispatchEvent(mouseEvent);
+    // Check if this is a two-finger gesture for rotation
+    if (e.touches.length === 2 && currentTool === 'stamp') {
+        isTwoFingerGesture = true;
+        e.preventDefault();
+        return; // Don't trigger drawing
+    }
+    
+    // Single touch - proceed with drawing
+    if (e.touches.length === 1) {
+        e.preventDefault();
+        isTwoFingerGesture = false;
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+        
+        const mouseEvent = new MouseEvent('mousedown', {
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            bubbles: true
+        });
+        canvas.dispatchEvent(mouseEvent);
+    }
 }, { passive: false });
 
 canvas.addEventListener('touchmove', (e) => {
+    // If it's a two-finger gesture, don't trigger drawing
+    if (isTwoFingerGesture || e.touches.length > 1) {
+        return; // Let the rotation handler deal with it
+    }
+    
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
@@ -1068,17 +1186,28 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    // Use last known touch position for touchend
-    const mouseEvent = new MouseEvent('mouseup', {
-        clientX: lastTouchX,
-        clientY: lastTouchY,
-        bubbles: true
-    });
-    canvas.dispatchEvent(mouseEvent);
+    
+    // Reset two-finger flag
+    if (e.touches.length === 0) {
+        isTwoFingerGesture = false;
+    }
+    
+    // Only trigger mouseup if it wasn't a two-finger gesture
+    if (!isTwoFingerGesture) {
+        // Use last known touch position for touchend
+        const mouseEvent = new MouseEvent('mouseup', {
+            clientX: lastTouchX,
+            clientY: lastTouchY,
+            bubbles: true
+        });
+        canvas.dispatchEvent(mouseEvent);
+    }
 }, { passive: false });
 
 canvas.addEventListener('touchcancel', (e) => {
     e.preventDefault();
+    isTwoFingerGesture = false;
+    
     const mouseEvent = new MouseEvent('mouseup', {
         clientX: lastTouchX,
         clientY: lastTouchY,
@@ -1166,6 +1295,10 @@ canvas.addEventListener('touchend', (e) => {
 function startDrawing(e) {
     initAudio();
     isDrawing = true;
+    
+    // Add visual feedback for mobile - show canvas is active
+    canvas.classList.add('drawing-active');
+    
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -1215,6 +1348,9 @@ function draw(e) {
 
 function stopDrawing(e) {
     if (!isDrawing) return;
+    
+    // Remove visual feedback
+    canvas.classList.remove('drawing-active');
     
     if (e) {
         const rect = canvas.getBoundingClientRect();
@@ -2131,7 +2267,27 @@ if (window.innerWidth <= 768) {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-    // Ignore shortcuts if user is typing in an input field
+    const helpModal = document.getElementById('help-modal');
+    
+    // Escape key to close help modal (works even when typing)
+    if (e.key === 'Escape' && helpModal && helpModal.style.display === 'flex') {
+        e.preventDefault();
+        helpModal.style.display = 'none';
+        return;
+    }
+    
+    // F1 or ? to open help (works even when typing, but not in input fields for ?)
+    if (e.key === 'F1' || (e.key === '?' && e.target.tagName !== 'INPUT')) {
+        e.preventDefault();
+        initAudio();
+        playSound('click');
+        if (helpModal) {
+            helpModal.style.display = 'flex';
+        }
+        return;
+    }
+    
+    // Ignore other shortcuts if user is typing in an input field
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
         return;
     }

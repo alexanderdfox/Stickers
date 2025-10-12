@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="EmojiPix">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
     <title>EmojiPix - Draw with Emojis!</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -1093,20 +1094,76 @@
 
                 <div class="tool-section">
                     <h3>✨ Effects</h3>
-                    <button class="effect-btn" data-effect="rainbow" title="Rainbow Mode">🌈 Rainbow</button>
-                    <button class="effect-btn" data-effect="sparkle" title="Sparkle">✨ Sparkle</button>
+                    <button class="effect-btn" data-effect="rainbow" title="Rainbow Mode (works with all tools!)">🌈 Rainbow</button>
+                    <button class="effect-btn" data-effect="sparkle" title="Sparkle (works with all tools!)">✨ Sparkle</button>
                     <div class="history-actions">
                         <button class="action-btn" id="undo-btn" title="Undo (Ctrl/Cmd+Z)" disabled>↶ Undo</button>
                         <button class="action-btn" id="redo-btn" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷ Redo</button>
                     </div>
-                    <button class="save-btn" id="save-btn">💾 Save as PNG</button>
-                    <button class="clear-btn" id="clear-btn">🗑️ Clear All</button>
+                    <button class="save-btn" id="save-btn" title="Save your masterpiece as PNG">💾 Save as PNG</button>
+                    <button class="clear-btn" id="clear-btn" title="Clear active layer with animation">🗑️ Clear All</button>
+                    <button class="help-btn" id="help-btn" title="Show keyboard shortcuts and tips (Press F1 or ?)">❓ Help</button>
                 </div>
             </div>
 
             <!-- Canvas Area -->
             <div class="canvas-container">
                 <canvas id="drawing-canvas"></canvas>
+                
+                <!-- Help Modal -->
+                <div class="help-modal" id="help-modal" style="display: none;">
+                    <div class="help-modal-content">
+                        <div class="help-modal-header">
+                            <h2>⌨️ Keyboard Shortcuts & Tips</h2>
+                            <button class="help-close-btn" id="help-close-btn">✕</button>
+                        </div>
+                        <div class="help-modal-body">
+                            <div class="help-section">
+                                <h3>🛠️ Tools (Number Keys)</h3>
+                                <div class="help-grid">
+                                    <span>1</span><span>Pencil ✏️</span>
+                                    <span>2</span><span>Line 📏</span>
+                                    <span>3</span><span>Eraser 🧽</span>
+                                    <span>4</span><span>Fill 🪣</span>
+                                    <span>5</span><span>Spray 💨</span>
+                                    <span>6</span><span>Circle ⭕</span>
+                                    <span>7</span><span>Square ⬜</span>
+                                    <span>8</span><span>Triangle 🔺</span>
+                                    <span>9</span><span>Star ⭐</span>
+                                    <span>0</span><span>Stamp 🎯</span>
+                                    <span>[</span><span>Circle Select</span>
+                                    <span>]</span><span>Square Select</span>
+                                </div>
+                            </div>
+                            <div class="help-section">
+                                <h3>↶↷ Editing</h3>
+                                <div class="help-grid">
+                                    <span>Ctrl/⌘+Z</span><span>Undo</span>
+                                    <span>Ctrl/⌘+Shift+Z</span><span>Redo</span>
+                                    <span>R</span><span>Reset Stamp Rotation</span>
+                                </div>
+                            </div>
+                            <div class="help-section">
+                                <h3>🔄 Stamp Rotation</h3>
+                                <div class="help-list">
+                                    <p><strong>Desktop:</strong> Mouse wheel up/down to rotate</p>
+                                    <p><strong>Mobile:</strong> Two-finger twist gesture</p>
+                                    <p><strong>Both:</strong> Press R or click Reset button</p>
+                                </div>
+                            </div>
+                            <div class="help-section">
+                                <h3>💡 Tips</h3>
+                                <div class="help-list">
+                                    <p>• Rainbow & Sparkle work with <strong>ALL</strong> tools!</p>
+                                    <p>• Use layers to organize complex drawings</p>
+                                    <p>• Double-click layer name to rename</p>
+                                    <p>• Copy/Cut/Paste work on active layer</p>
+                                    <p>• All shapes support patterns & effects</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Layer Manager Panel -->
                 <div class="layer-panel">
