@@ -111,6 +111,18 @@ header p {
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 0;
+    /* iOS Safari fixes */
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: rgba(102, 126, 234, 0.3);
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    /* Ensure button is always clickable */
+    pointer-events: auto;
+    /* Prevent button from being affected by transforms on parent */
+    will-change: transform;
 }
 
 .sidebar-toggle-btn:hover {
@@ -1988,6 +2000,9 @@ header p {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         margin-left: 0;
         z-index: 1001;
+        /* Ensure button is tappable on iOS */
+        pointer-events: auto;
+        position: fixed;
     }
     
     .sidebar-toggle-btn:hover {
@@ -1996,6 +2011,7 @@ header p {
     
     .sidebar-toggle-btn:active {
         transform: translateX(-50%) scale(0.95);
+        opacity: 0.8;
     }
     
     .main-content.sidebar-collapsed .sidebar-toggle-btn {

@@ -776,13 +776,26 @@ const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
 const mainContent = document.querySelector('.main-content');
 
 function toggleSidebar() {
+    if (!mainContent) {
+        console.error('Main content not found');
+        return;
+    }
+    
     initAudio();
     playSound('click');
     
+    // Toggle the class
     const isCollapsed = mainContent.classList.toggle('sidebar-collapsed');
     
+    // Force a reflow to ensure the transition happens
+    mainContent.offsetHeight;
+    
     // Save state to localStorage
-    localStorage.setItem('sidebar-collapsed', isCollapsed);
+    try {
+        localStorage.setItem('sidebar-collapsed', isCollapsed);
+    } catch (e) {
+        console.warn('Could not save sidebar state:', e);
+    }
     
     // Show toast notification
     if (isCollapsed) {
@@ -790,17 +803,66 @@ function toggleSidebar() {
     } else {
         showToast('🛠️ Sidebar visible');
     }
+    
+    // Debug log for iOS testing
+    console.log('Sidebar toggled. Collapsed:', isCollapsed);
 }
 
 if (sidebarToggleBtn) {
-    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    // Make function globally accessible for onclick fallback
+    window.toggleSidebarFromButton = function() {
+        toggleSidebar();
+    };
     
-    // Touch handler for mobile
-    sidebarToggleBtn.addEventListener('touchend', (e) => {
+    // Set onclick as fallback for iOS Safari
+    sidebarToggleBtn.onclick = function(e) {
         e.preventDefault();
         e.stopPropagation();
         toggleSidebar();
+        return false;
+    };
+    
+    // Desktop click handler
+    sidebarToggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+    
+    // iOS Safari-compatible touch handling
+    let touchStarted = false;
+    let touchMoved = false;
+    
+    sidebarToggleBtn.addEventListener('touchstart', (e) => {
+        touchStarted = true;
+        touchMoved = false;
+        // Don't preventDefault here to allow click event to fire as fallback
+        // Visual feedback
+        sidebarToggleBtn.style.opacity = '0.8';
+    }, { passive: true });
+    
+    sidebarToggleBtn.addEventListener('touchmove', (e) => {
+        touchMoved = true;
+    }, { passive: true });
+    
+    sidebarToggleBtn.addEventListener('touchend', (e) => {
+        if (touchStarted && !touchMoved) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Reset visual feedback
+            sidebarToggleBtn.style.opacity = '1';
+            // Trigger toggle
+            toggleSidebar();
+        }
+        touchStarted = false;
+        touchMoved = false;
     }, { passive: false });
+    
+    sidebarToggleBtn.addEventListener('touchcancel', (e) => {
+        touchStarted = false;
+        touchMoved = false;
+        sidebarToggleBtn.style.opacity = '1';
+    }, { passive: true });
 }
 
 // Restore sidebar state from localStorage
