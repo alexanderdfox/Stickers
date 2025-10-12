@@ -93,9 +93,9 @@ header p {
 /* Sidebar Toggle Button */
 .sidebar-toggle-btn {
     position: fixed;
-    left: 0;
+    left: 50%;
     top: 50%;
-    transform: translateY(-50%);
+    transform: translate(calc(-800px + 280px + 24px), -50%);
     z-index: 1000;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
@@ -111,7 +111,6 @@ header p {
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 0;
-    margin-left: calc(280px + 48px + 24px);
 }
 
 .sidebar-toggle-btn:hover {
@@ -121,11 +120,15 @@ header p {
 }
 
 .sidebar-toggle-btn:active {
-    transform: translateY(-50%) scale(0.95);
+    transform: translate(calc(-800px + 280px + 24px), -50%) scale(0.95);
 }
 
 .main-content.sidebar-collapsed .sidebar-toggle-btn {
-    margin-left: 24px;
+    transform: translate(calc(-800px + 24px), -50%);
+}
+
+.main-content.sidebar-collapsed .sidebar-toggle-btn:active {
+    transform: translate(calc(-800px + 24px), -50%) scale(0.95);
 }
 
 .toggle-icon {
@@ -136,6 +139,50 @@ header p {
 
 .main-content.sidebar-collapsed .toggle-icon {
     transform: rotate(180deg);
+}
+
+/* Large desktops - perfectly centered layout */
+@media (min-width: 1641px) {
+    .sidebar-toggle-btn {
+        /* Position relative to centered container (max-width: 1600px) */
+        /* 50% - half of max-width + toolbar width + padding */
+        left: 50%;
+        transform: translate(calc(-800px + 280px + 24px), -50%);
+    }
+    
+    .sidebar-toggle-btn:active {
+        transform: translate(calc(-800px + 280px + 24px), -50%) scale(0.95);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn {
+        transform: translate(calc(-800px + 24px), -50%);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn:active {
+        transform: translate(calc(-800px + 24px), -50%) scale(0.95);
+    }
+}
+
+/* Medium to large screens - button stays with toolbar */
+@media (max-width: 1640px) and (min-width: 1025px) {
+    .sidebar-toggle-btn {
+        left: 20px;
+        transform: translate(0, -50%);
+        margin-left: calc(280px + 24px);
+    }
+    
+    .sidebar-toggle-btn:active {
+        transform: translate(0, -50%) scale(0.95);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn {
+        margin-left: 0;
+        transform: translate(0, -50%);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn:active {
+        transform: translate(0, -50%) scale(0.95);
+    }
 }
 
 .tool-section {
@@ -1854,6 +1901,15 @@ header p {
     .toolbar {
         width: 260px;
     }
+    
+    /* Adjust sidebar toggle for tablet with 260px toolbar */
+    .sidebar-toggle-btn {
+        margin-left: calc(260px + 24px);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn {
+        margin-left: 0;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1881,6 +1937,14 @@ header p {
         width: 100%;
         max-height: 350px;
         -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Collapsed toolbar on mobile hides vertically */
+    .main-content.sidebar-collapsed .toolbar {
+        max-height: 0;
+        min-height: 0;
+        padding: 0;
+        margin: 0;
     }
     
     .canvas-container {
@@ -1911,16 +1975,45 @@ header p {
         -webkit-overflow-scrolling: touch;
     }
     
-    /* Sidebar toggle button on mobile */
+    /* Sidebar toggle button on mobile - position at bottom of screen */
     .sidebar-toggle-btn {
-        width: 32px;
-        height: 60px;
-        font-size: 1em;
-        margin-left: calc(280px + 24px + 12px);
+        width: 48px;
+        height: 48px;
+        font-size: 1.2em;
+        left: 50%;
+        top: auto;
+        bottom: 80px;
+        transform: translateX(-50%);
+        border-radius: 50%;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        margin-left: 0;
+        z-index: 1001;
+    }
+    
+    .sidebar-toggle-btn:hover {
+        width: 48px;
+    }
+    
+    .sidebar-toggle-btn:active {
+        transform: translateX(-50%) scale(0.95);
     }
     
     .main-content.sidebar-collapsed .sidebar-toggle-btn {
-        margin-left: 12px;
+        margin-left: 0;
+        transform: translateX(-50%);
+    }
+    
+    .main-content.sidebar-collapsed .sidebar-toggle-btn:active {
+        transform: translateX(-50%) scale(0.95);
+    }
+    
+    /* Rotate icon 90 degrees on mobile for up/down instead of left/right */
+    .toggle-icon {
+        transform: rotate(90deg);
+    }
+    
+    .main-content.sidebar-collapsed .toggle-icon {
+        transform: rotate(-90deg);
     }
     
     /* Larger touch targets for mobile */
