@@ -270,8 +270,15 @@ function getActiveContext() {
 }
 
 function renderCanvas() {
-    // Clear main canvas
+    // Clear main canvas completely
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Reset all canvas state to prevent glitches (especially on Cloudflare)
+    ctx.setLineDash([]);  // Clear any dashed lines (from selection outlines)
+    ctx.globalAlpha = 1;  // Reset alpha
+    ctx.globalCompositeOperation = 'source-over';  // Reset composite operation
+    ctx.strokeStyle = '#000000';  // Reset stroke
+    ctx.fillStyle = '#000000';  // Reset fill
     
     // Render all visible layers from bottom to top
     for (let i = layers.length - 1; i >= 0; i--) {
@@ -646,10 +653,9 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         btn.classList.add('active');
         currentTool = btn.dataset.tool;
         
-        // Clear any selection outlines when switching tools
-        if (currentTool !== 'select-circle' && currentTool !== 'select-square' && currentTool !== 'paste') {
-            renderCanvas(); // Re-render to clear selection outlines
-        }
+        // Always re-render to clear any temporary overlays (selection outlines, etc.)
+        // This prevents blue glitches from selection outlines persisting
+        renderCanvas();
         
         updateToolUI();
         updateCursor();
@@ -848,6 +854,9 @@ function handleCopy() {
         pasteBtn.disabled = false;
         selectionData = null;
         selectionBounds = null;
+        
+        // Clear selection outline by re-rendering
+        renderCanvas();
         
         // Visual feedback for mobile
         showToast('✓ Copied to clipboard');
@@ -2052,6 +2061,10 @@ function selectCircle(startX, startY, endX, endY) {
     ctx.stroke();
     ctx.restore();
     
+    // Force reset to default state after drawing outline
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#000000';
+    
     // Visual feedback for mobile
     showToast('Selection created - Copy or Cut');
 }
@@ -2080,6 +2093,10 @@ function selectSquare(startX, startY, endX, endY) {
     ctx.setLineDash([8, 4]); // Larger dashes for mobile
     ctx.strokeRect(left, top, width, height);
     ctx.restore();
+    
+    // Force reset to default state after drawing outline
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#000000';
     
     // Visual feedback for mobile
     showToast('Selection created - Copy or Cut');
