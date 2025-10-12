@@ -5,7 +5,10 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 ## 🌟 Highlights
 
 - **↶↷ Undo/Redo** - Full history management with 50-step memory and keyboard shortcuts
-- **⌨️ Keyboard Shortcuts** - Number keys (1-9,0,[,]) for instant tool switching
+- **⌨️ Keyboard Shortcuts** - Number keys (1-9,0,[,]), zoom (+/-), and more for instant access
+- **🔍 Canvas Zoom** - Zoom 25%-300% with +/- keys for detailed work
+- **📐 Canvas Sizes** - 7 presets from 512×512 to 1920×1080 (Full HD)
+- **💾 Export Resolutions** - Save at 50%, 100%, 200%, or 400% for any use case
 - **🔄 Rotatable Stamps** - Mouse wheel (desktop) or two-finger twist (mobile) rotation
 - **🔺⭐ 6 Shape Tools** - Circle, Square, Triangle, Star, plus Line and selection tools
 - **📱 iOS & Mobile Optimized** - Full touch support with gestures, toast notifications, and adaptive UI
@@ -16,7 +19,7 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 - **🔤 20 Fonts** - Full typography support with case toggle
 - **🔊 Sound Effects** - Kid Pix-style audio feedback
 - **✨ Special Effects** - Rainbow and sparkle modes for ALL tools
-- **❓ Help System** - Built-in help modal with shortcuts and tips
+- **❓ Help System** - Built-in help modal with shortcuts and tips (F1 or ?)
 
 ## ✨ Features
 
@@ -106,13 +109,37 @@ Organized in 9 categories:
 - Touch-friendly copy/cut/paste buttons (44px minimum)
 - Works perfectly on active layer with transparency
 
-### 📏 Size Control
+### 📏 Size & Zoom Control
 
+#### Brush Size
 - **Adjustable Brush Size** - 1-50 pixels
 - **Live Preview** - See current size value
 - **Gradient Slider** - Beautiful purple gradient slider
 - Affects pencil width, eraser size, line thickness, shape borders, and stamp size
 - **Size-Matched Cursor** - Emoji stamp cursor scales with brush size
+- **Touch-Optimized** - No scrolling while adjusting on mobile
+
+#### Canvas Zoom (Press + or -)
+- **Zoom In** - Press **+** or click ➕ button (25% increments)
+- **Zoom Out** - Press **-** or click ➖ button (25% decrements)
+- **Zoom Range** - 25% to 300% for detailed work or overview
+- **Reset Zoom** - Click "Reset Zoom" button to return to 100%
+- **Smooth Animation** - Cubic-bezier easing for natural feel
+- **Non-Destructive** - Zoom is visual only, doesn't affect canvas resolution
+
+#### Canvas Size
+- **7 Preset Sizes** - From 512×512 to 1920×1080 (Full HD)
+  - 800×600 (Default)
+  - 1024×768 (Large)
+  - 1280×720 (HD 16:9)
+  - 1920×1080 (Full HD)
+  - 640×480 (Small)
+  - 512×512 (Square)
+  - 1080×1080 (Instagram Square)
+- **Layer Preservation** - Content preserved when resizing (top-left aligned)
+- **Confirmation Dialog** - Prevents accidental size changes
+- **Undo Support** - Canvas resize tracked in history
+- **Auto-Update** - Selector shows current canvas size
 
 ### 📑 Layer Manager
 
@@ -175,9 +202,24 @@ Built-in help modal for easy reference:
 
 ### 💾 File Operations
 
+#### Save with Export Resolution
 - **💾 Save as PNG** - Download your artwork with timestamped filename (merges all visible layers)
+- **Export Sizes:**
+  - **100%** - Canvas size (default)
+  - **200%** - 2× resolution for high-quality prints
+  - **400%** - 4× resolution for ultra-high-res output
+  - **50%** - Smaller file size for web sharing
+- **Smart Scaling** - Maintains perfect quality when upscaling
+- **Filename Format** - `emojipix-YYYY-MM-DD-HH-MM-SS-2x.png` (includes scale if not 100%)
+- **Toast Confirmation** - Shows exported size: "💾 Saved 1600×1200px PNG!"
+- **Examples:**
+  - 800×600 canvas at 200% = 1600×1200px export
+  - 1920×1080 canvas at 400% = 7680×4320px export (print quality!)
+
+#### Clear & Reset
 - **🗑️ Clear Layer** - Kid Pix-style animated clear on active layer only (wipe-down effect)
 - **Confirmation Dialog** - Prevents accidental clearing
+- **Undo Available** - Clear operation tracked in history
 
 ### 🔊 Sound Effects
 
@@ -346,13 +388,34 @@ Perfect mobile experience with comprehensive touch support:
 8. Merge down when you're happy with the result
 
 ### Creating Complex Artwork
-1. Start with the background layer for your base
-2. Add a new layer for main subjects
-3. Add another layer for details or effects
-4. Use layer opacity to create shadows or highlights
-5. Toggle layer visibility to work on specific elements
-6. Merge layers as you finish sections
-7. Save when complete (all visible layers are combined)
+1. Choose your canvas size (📐 Canvas Size dropdown)
+2. Start with the background layer for your base
+3. Add a new layer for main subjects
+4. Add another layer for details or effects
+5. Use layer opacity to create shadows or highlights
+6. Toggle layer visibility to work on specific elements
+7. Zoom in (+) for detailed work, zoom out (-) for overview
+8. Merge layers as you finish sections
+9. Choose export resolution (50%-400%)
+10. Save when complete (all visible layers are combined)
+
+### Using Zoom for Detail Work
+1. Press **+** key or click ➕ to zoom in (max 300%)
+2. Work on fine details at higher zoom
+3. Press **-** key or click ➖ to zoom out
+4. Click **Reset Zoom** to return to 100%
+5. Zoom is visual only - doesn't affect export size
+
+### Exporting at Different Resolutions
+1. Complete your artwork at your chosen canvas size
+2. Select export resolution from dropdown:
+   - **50%** for smaller file sizes (web thumbnails)
+   - **100%** for original canvas resolution
+   - **200%** for high-quality prints (2× pixels)
+   - **400%** for ultra-high-resolution posters (4× pixels)
+3. Click **💾 Save as PNG**
+4. File downloads with resolution in filename (e.g., `-2x.png`)
+5. Example: 1920×1080 canvas at 400% = 7680×4320px PNG!
 
 ## ⌨️ Keyboard Shortcuts
 
@@ -375,30 +438,38 @@ Perfect mobile experience with comprehensive touch support:
 - **Ctrl/Cmd + Shift + Z** or **Ctrl + Y** - Redo
 - **R** - Reset stamp rotation to 0° (when stamp tool is active)
 
+### Zoom Controls
+- **+** or **=** - Zoom in (25% increments, up to 300%)
+- **-** - Zoom out (25% decrements, down to 25%)
+- Click **Reset Zoom** button to return to 100%
+
 ### Stamp Tool Rotation
 - **Desktop:** Mouse wheel up/down to rotate (15° per notch)
 - **Mobile:** Two-finger twist gesture for smooth rotation
 - **Both:** Press **R** to reset rotation to 0°
 
 ### Help & Navigation
-- **F1** or **?** - Open help modal
+- **F1** or **?** - Open help modal (with all shortcuts and tips)
 - **Escape** - Close help modal
 
 All shortcuts work globally except when typing in input fields.
 
 ## 📝 Technical Details
 
-- **Canvas Size**: 800x600 pixels (desktop), 600x450 pixels (mobile) - auto-responsive
+- **Canvas Sizes**: 7 presets from 512×512 to 1920×1080 (user-selectable, with resize preservation)
+- **Default Size**: 800×600 pixels (auto-adjusts to ~600×450 on mobile for performance)
+- **Zoom Levels**: 25% to 300% in 25% increments (visual scaling, non-destructive)
+- **Export Resolutions**: 50%, 100%, 200%, 400% (up to 7680×4320 for 4K displays)
 - **Color Depth**: 32-bit RGBA with full alpha channel support
 - **Layer System**: Multi-layer architecture with transparency, opacity, and blending
-- **History Management**: 50-step undo/redo with full layer state restoration
-- **Keyboard Support**: Number keys (1-9,0,[,]) + standard editing shortcuts (Ctrl+Z, etc.)
+- **History Management**: 50-step undo/redo with full layer state restoration (includes canvas resizing)
+- **Keyboard Support**: Number keys (1-9,0,[,]), zoom (+/-), editing (Ctrl+Z), help (F1/?)
 - **Dynamic Cursors**: Real-time emoji/character cursor generation with rotation preview
 - **Stamp Rotation**: 360° rotation - mouse wheel (desktop) or two-finger gesture (mobile)
 - **Audio**: Web Audio API for sound synthesis with pitch variation
 - **Patterns**: Dynamic canvas pattern generation with rainbow support
-- **Touch Gestures**: Single-touch drawing, two-finger rotation, pinch-free interaction
-- **Performance**: Optimized for smooth 60fps drawing with multiple layers
+- **Touch Gestures**: Single-touch drawing, two-finger rotation, smart gesture conflict prevention
+- **Performance**: Optimized for smooth 60fps drawing with multiple layers (tested up to Full HD)
 - **Responsive**: Adaptive canvas sizing, collapsible panels, touch-optimized controls
 - **Cross-Platform**: Desktop (mouse+keyboard), Mobile (touch+gestures), Tablet (hybrid)
 
@@ -436,11 +507,16 @@ This project is inspired by the classic Kid Pix drawing program, featuring:
 
 ### What Makes EmojiPix Special
 - **Cross-platform perfection** - Identical experience on desktop and mobile
+- **Professional tools** - 6 shape tools, all with patterns and effects
+- **Flexible canvas** - 7 preset sizes (512×512 to 1920×1080) with resize preservation
+- **Zoom capability** - 25%-300% zoom for detail work without changing resolution
+- **Export versatility** - Save at 50%-400% scale for any use case (web to print)
 - **Layer-aware operations** - Copy, paste, and all edits respect layers
 - **Smart touch detection** - Two-finger gestures don't interfere with drawing
-- **Comprehensive undo** - Every action tracked, including layer changes
+- **Comprehensive undo** - Every action tracked, including canvas size changes
 - **Effect versatility** - Rainbow and Sparkle work with every single tool
-- **Accessibility** - Large touch targets (44-48px), clear visual feedback
+- **Visual feedback** - Toast notifications, selection outlines, drawing glow
+- **Accessibility** - Large touch targets (44-48px), clear visual feedback, help modal
 - **No framework bloat** - Pure vanilla JavaScript for speed
 - **Offline ready** - Works without internet after first load
 
