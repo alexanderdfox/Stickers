@@ -11,6 +11,11 @@ let layers = [];
 let activeLayerIndex = 0;
 let layerIdCounter = 0;
 
+// History Management for Undo/Redo
+let history = [];
+let historyStep = -1;
+const MAX_HISTORY = 50;
+
 // Initial settings
 let isDrawing = false;
 let currentTool = 'pencil';
@@ -26,6 +31,7 @@ let fillPattern = 'solid';
 let secondaryColor = '#FFFFFF';
 let shapeStartX = 0;
 let shapeStartY = 0;
+let stampRotation = 0; // Rotation angle in degrees for stamp tool
 
 // Selection and clipboard
 let clipboard = null;
@@ -218,6 +224,7 @@ function addLayer() {
     activeLayerIndex = 0;
     renderCanvas();
     updateLayersList();
+    saveHistory();
 }
 
 function deleteLayer() {
@@ -233,6 +240,7 @@ function deleteLayer() {
     }
     renderCanvas();
     updateLayersList();
+    saveHistory();
 }
 
 function duplicateLayer() {
@@ -246,6 +254,7 @@ function duplicateLayer() {
     activeLayerIndex = activeLayerIndex; // Keep same index (which is now the new layer)
     renderCanvas();
     updateLayersList();
+    saveHistory();
 }
 
 function mergeLayerDown() {
@@ -270,6 +279,7 @@ function mergeLayerDown() {
     
     renderCanvas();
     updateLayersList();
+    saveHistory();
 }
 
 function setActiveLayer(index) {
@@ -439,8 +449,114 @@ function updateLayerOpacityControl() {
     opacityDisplay.textContent = Math.round(layer.opacity * 100) + '%';
 }
 
+// History Management Functions
+function saveHistory() {
+    // Remove any history steps after the current step
+    if (historyStep < history.length - 1) {
+        history = history.slice(0, historyStep + 1);
+    }
+    
+    // Save current state of all layers
+    const state = layers.map(layer => ({
+        id: layer.id,
+        name: layer.name,
+        visible: layer.visible,
+        opacity: layer.opacity,
+        imageData: layer.ctx.getImageData(0, 0, canvas.width, canvas.height)
+    }));
+    
+    history.push({
+        layers: state,
+        activeLayerIndex: activeLayerIndex
+    });
+    
+    // Limit history size
+    if (history.length > MAX_HISTORY) {
+        history.shift();
+    } else {
+        historyStep++;
+    }
+    
+    updateHistoryButtons();
+}
+
+function undo() {
+    if (historyStep > 0) {
+        initAudio();
+        playSound('click');
+        historyStep--;
+        restoreHistory();
+    }
+}
+
+function redo() {
+    if (historyStep < history.length - 1) {
+        initAudio();
+        playSound('click');
+        historyStep++;
+        restoreHistory();
+    }
+}
+
+function restoreHistory() {
+    if (historyStep < 0 || historyStep >= history.length) return;
+    
+    const state = history[historyStep];
+    
+    // Restore layers
+    layers = state.layers.map(layerState => {
+        const layerCanvas = document.createElement('canvas');
+        layerCanvas.width = canvas.width;
+        layerCanvas.height = canvas.height;
+        const layerCtx = layerCanvas.getContext('2d');
+        layerCtx.putImageData(layerState.imageData, 0, 0);
+        
+        return {
+            id: layerState.id,
+            name: layerState.name,
+            canvas: layerCanvas,
+            ctx: layerCtx,
+            visible: layerState.visible,
+            opacity: layerState.opacity
+        };
+    });
+    
+    activeLayerIndex = state.activeLayerIndex;
+    
+    renderCanvas();
+    updateLayersList();
+    updateLayerOpacityControl();
+    updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    
+    if (undoBtn) {
+        undoBtn.disabled = historyStep <= 0;
+    }
+    
+    if (redoBtn) {
+        redoBtn.disabled = historyStep >= history.length - 1;
+    }
+}
+
 // Initialize layers
 initializeLayers();
+
+// Save initial state to history
+saveHistory();
+
+// Undo/Redo button event listeners
+const undoBtn = document.getElementById('undo-btn');
+const redoBtn = document.getElementById('redo-btn');
+if (undoBtn) {
+    undoBtn.addEventListener('click', undo);
+}
+if (redoBtn) {
+    redoBtn.addEventListener('click', redo);
+}
 
 // Tool buttons
 document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -450,9 +566,51 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentTool = btn.dataset.tool;
+        updateToolUI();
         updateCursor();
     });
 });
+
+// Update UI based on selected tool
+function updateToolUI() {
+    const rotationSection = document.getElementById('rotation-section');
+    
+    if (currentTool === 'stamp') {
+        // Show rotation section for stamp tool
+        if (rotationSection) {
+            rotationSection.style.display = 'block';
+            updateRotationDisplay();
+        }
+    } else {
+        // Hide rotation section for other tools
+        if (rotationSection) {
+            rotationSection.style.display = 'none';
+        }
+    }
+}
+
+// Update rotation angle display
+function updateRotationDisplay() {
+    const rotationAngle = document.getElementById('rotation-angle');
+    if (rotationAngle) {
+        rotationAngle.textContent = `${Math.round(stampRotation)}°`;
+    }
+}
+
+// Reset stamp rotation
+function resetRotation() {
+    stampRotation = 0;
+    updateRotationDisplay();
+    updateCursor();
+    initAudio();
+    playSound('click');
+}
+
+// Reset rotation button
+const resetRotationBtn = document.getElementById('reset-rotation-btn');
+if (resetRotationBtn) {
+    resetRotationBtn.addEventListener('click', resetRotation);
+}
 
 // Color buttons
 document.querySelectorAll('.color-btn').forEach(btn => {
@@ -607,6 +765,7 @@ document.querySelectorAll('.emoji-btn').forEach(btn => {
         currentTool = 'stamp';
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         document.querySelector('[data-tool="stamp"]').classList.add('active');
+        updateToolUI();
         updateCursor();
     });
 });
@@ -620,12 +779,16 @@ document.querySelectorAll('.effect-btn').forEach(btn => {
         if (effect === 'rainbow') {
             rainbowMode = !rainbowMode;
             sparkleMode = false;
-            btn.style.opacity = rainbowMode ? '0.6' : '1';
+            // Update visual state
+            btn.classList.toggle('active', rainbowMode);
+            document.querySelector('[data-effect="sparkle"]').classList.remove('active');
             if (currentTool === 'stamp') updateCursor();
         } else if (effect === 'sparkle') {
             sparkleMode = !sparkleMode;
             rainbowMode = false;
-            btn.style.opacity = sparkleMode ? '0.6' : '1';
+            // Update visual state
+            btn.classList.toggle('active', sparkleMode);
+            document.querySelector('[data-effect="rainbow"]').classList.remove('active');
         }
     });
 });
@@ -645,10 +808,17 @@ document.getElementById('layer-toggle').addEventListener('click', () => {
 });
 
 // Layer opacity control
+let opacityChangeTimeout;
 document.getElementById('layer-opacity').addEventListener('input', (e) => {
     const opacity = e.target.value / 100;
     setLayerOpacity(opacity);
     document.getElementById('opacity-display').textContent = e.target.value + '%';
+    
+    // Save history after user stops adjusting (debounce)
+    clearTimeout(opacityChangeTimeout);
+    opacityChangeTimeout = setTimeout(() => {
+        saveHistory();
+    }, 500);
 });
 
 // Save button - merge all layers
@@ -710,6 +880,7 @@ function clearCanvasWithAnimation() {
             activeCtx.clearRect(0, 0, canvas.width, canvas.height);
             renderCanvas();
             updateLayersList();
+            saveHistory();
         }
     }, 20);
 }
@@ -773,6 +944,34 @@ canvas.addEventListener('touchcancel', (e) => {
     canvas.dispatchEvent(mouseEvent);
 }, { passive: false });
 
+// Mouse wheel for stamp rotation
+canvas.addEventListener('wheel', (e) => {
+    if (currentTool === 'stamp') {
+        e.preventDefault();
+        
+        // Adjust rotation based on wheel delta
+        const rotationStep = 15; // degrees per wheel notch
+        if (e.deltaY < 0) {
+            // Scroll up - rotate counter-clockwise
+            stampRotation -= rotationStep;
+        } else {
+            // Scroll down - rotate clockwise
+            stampRotation += rotationStep;
+        }
+        
+        // Normalize rotation to 0-360 range
+        stampRotation = ((stampRotation % 360) + 360) % 360;
+        
+        // Update UI and cursor to show new rotation
+        updateRotationDisplay();
+        updateCursor();
+        
+        // Play a subtle sound
+        initAudio();
+        playSound('custom', 400 + (stampRotation / 360) * 200, 0.05);
+    }
+}, { passive: false });
+
 function startDrawing(e) {
     initAudio();
     isDrawing = true;
@@ -783,14 +982,17 @@ function startDrawing(e) {
     if (currentTool === 'fill') {
         playSound('fill');
         floodFill(x, y, hexToRgb(currentColor));
+        saveHistory();
         isDrawing = false;
     } else if (currentTool === 'stamp') {
         playSound('stamp');
         stampEmoji(x, y);
+        saveHistory();
         isDrawing = false;
     } else if (currentTool === 'paste' && clipboard) {
         playSound('stamp');
         pasteClipboard(x, y);
+        saveHistory();
         isDrawing = false;
     } else if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'line' || 
                currentTool === 'select-circle' || currentTool === 'select-square') {
@@ -852,6 +1054,9 @@ function stopDrawing(e) {
     // Update layer thumbnail and render
     renderCanvas();
     updateLayersList();
+    
+    // Save to history after drawing
+    saveHistory();
 }
 
 let lastSoundTime = 0;
@@ -963,6 +1168,14 @@ function stampEmoji(x, y) {
         charToStamp = textCase === 'upper' ? selectedEmoji.toUpperCase() : selectedEmoji.toLowerCase();
     }
     
+    // Save context state
+    activeCtx.save();
+    
+    // Apply rotation
+    activeCtx.translate(x, y);
+    activeCtx.rotate((stampRotation * Math.PI) / 180);
+    activeCtx.translate(-x, -y);
+    
     if (isTextCharacter) {
         // Use selected font for text characters
         activeCtx.font = `bold ${size}px "${selectedFont}", Arial, sans-serif`;
@@ -977,6 +1190,7 @@ function stampEmoji(x, y) {
     // Apply current color to text characters
     if (isTextCharacter) {
         if (rainbowMode) {
+            rainbowHue = (rainbowHue + 15) % 360;
             activeCtx.fillStyle = `hsl(${rainbowHue}, 100%, 50%)`;
         } else {
             activeCtx.fillStyle = currentColor;
@@ -987,6 +1201,18 @@ function stampEmoji(x, y) {
     }
     
     activeCtx.fillText(charToStamp, x, y);
+    
+    // Restore context state
+    activeCtx.restore();
+    
+    // Add sparkle effect
+    if (sparkleMode) {
+        addSparkles(x, y);
+        addSparkles(x - size/3, y - size/3);
+        addSparkles(x + size/3, y - size/3);
+        addSparkles(x - size/3, y + size/3);
+        addSparkles(x + size/3, y + size/3);
+    }
     
     // Render after stamping
     renderCanvas();
@@ -1025,7 +1251,12 @@ function addSparkles(x, y) {
 }
 
 function createPattern() {
+    // Handle rainbow mode for solid fills
     if (fillPattern === 'solid') {
+        if (rainbowMode) {
+            rainbowHue = (rainbowHue + 10) % 360;
+            return `hsl(${rainbowHue}, 100%, 50%)`;
+        }
         return currentColor;
     }
     
@@ -1036,7 +1267,12 @@ function createPattern() {
     const patternCanvas = document.createElement('canvas');
     const patternCtx = patternCanvas.getContext('2d');
     
-    const color1 = currentColor;
+    // Apply rainbow to primary color if rainbow mode is active
+    let color1 = currentColor;
+    if (rainbowMode) {
+        rainbowHue = (rainbowHue + 10) % 360;
+        color1 = `hsl(${rainbowHue}, 100%, 50%)`;
+    }
     const color2 = secondaryColor;
     
     switch(fillPattern) {
@@ -1110,12 +1346,25 @@ function drawCircle(startX, startY, endX, endY) {
         activeCtx.fill();
     }
     
-    activeCtx.strokeStyle = currentColor;
+    // Apply rainbow mode to stroke
+    if (rainbowMode) {
+        rainbowHue = (rainbowHue + 10) % 360;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+    } else {
+        activeCtx.strokeStyle = currentColor;
+    }
     activeCtx.lineWidth = Math.max(brushSize / 2, 2);
     activeCtx.stroke();
     
     if (sparkleMode) {
         addSparkles(startX, startY);
+        // Add sparkles around the circle
+        for (let i = 0; i < 8; i++) {
+            const angle = (Math.PI * 2 * i) / 8;
+            const sparkleX = startX + Math.cos(angle) * radius;
+            const sparkleY = startY + Math.sin(angle) * radius;
+            addSparkles(sparkleX, sparkleY);
+        }
     }
     
     renderCanvas();
@@ -1136,12 +1385,23 @@ function drawSquare(startX, startY, endX, endY) {
         activeCtx.fill();
     }
     
-    activeCtx.strokeStyle = currentColor;
+    // Apply rainbow mode to stroke
+    if (rainbowMode) {
+        rainbowHue = (rainbowHue + 10) % 360;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+    } else {
+        activeCtx.strokeStyle = currentColor;
+    }
     activeCtx.lineWidth = Math.max(brushSize / 2, 2);
     activeCtx.stroke();
     
     if (sparkleMode) {
         addSparkles(startX + width/2, startY + height/2);
+        // Add sparkles at corners
+        addSparkles(startX, startY);
+        addSparkles(endX, startY);
+        addSparkles(startX, endY);
+        addSparkles(endX, endY);
     }
     
     renderCanvas();
@@ -1364,6 +1624,22 @@ function floodFill(startX, startY, fillColor) {
     });
     
     activeCtx.putImageData(finalImageData, 0, 0);
+    
+    // Add sparkle effect if enabled
+    if (sparkleMode) {
+        // Add sparkles at the click point
+        addSparkles(startX, startY);
+        
+        // Add sparkles at random points within the filled area
+        const sparkleCount = Math.min(10, Math.floor(visited.size / 100));
+        const visitedArray = Array.from(visited);
+        for (let i = 0; i < sparkleCount; i++) {
+            const randomKey = visitedArray[Math.floor(Math.random() * visitedArray.length)];
+            const [x, y] = randomKey.split(',').map(Number);
+            addSparkles(x, y);
+        }
+    }
+    
     renderCanvas();
     updateLayersList();
 }
@@ -1412,6 +1688,12 @@ function updateCursor() {
             charToDraw = textCase === 'upper' ? selectedEmoji.toUpperCase() : selectedEmoji.toLowerCase();
         }
         
+        // Apply rotation to cursor
+        cursorCtx.save();
+        cursorCtx.translate(cursorSize / 2, cursorSize / 2);
+        cursorCtx.rotate((stampRotation * Math.PI) / 180);
+        cursorCtx.translate(-cursorSize / 2, -cursorSize / 2);
+        
         // Set font based on character type - matching stampEmoji() function
         if (isTextCharacter) {
             cursorCtx.font = `bold ${cursorSize}px "${selectedFont}", Arial, sans-serif`;
@@ -1435,6 +1717,8 @@ function updateCursor() {
         
         // Draw the emoji/character
         cursorCtx.fillText(charToDraw, cursorSize / 2, cursorSize / 2);
+        
+        cursorCtx.restore();
         
         // Convert to data URL and set as cursor
         const dataURL = cursorCanvas.toDataURL();
@@ -1485,6 +1769,87 @@ if (fontPreview) {
 
 // Initialize cursor
 updateCursor();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Ignore shortcuts if user is typing in an input field
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+        return;
+    }
+    
+    // Ctrl+Z or Cmd+Z for undo
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+    }
+    // Ctrl+Shift+Z or Cmd+Shift+Z or Ctrl+Y for redo
+    else if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') || 
+             (e.ctrlKey && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+    }
+    // Number keys for tool selection (without modifiers)
+    else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+        let toolToSelect = null;
+        
+        switch(e.key) {
+            case '1':
+                toolToSelect = 'pencil';
+                break;
+            case '2':
+                toolToSelect = 'line';
+                break;
+            case '3':
+                toolToSelect = 'eraser';
+                break;
+            case '4':
+                toolToSelect = 'fill';
+                break;
+            case '5':
+                toolToSelect = 'spray';
+                break;
+            case '6':
+                toolToSelect = 'circle';
+                break;
+            case '7':
+                toolToSelect = 'square';
+                break;
+            case '8':
+                toolToSelect = 'stamp';
+                break;
+            case '9':
+                toolToSelect = 'select-circle';
+                break;
+            case '0':
+                toolToSelect = 'select-square';
+                break;
+            case 'r':
+            case 'R':
+                // Reset rotation when stamp tool is active
+                if (currentTool === 'stamp') {
+                    e.preventDefault();
+                    resetRotation();
+                }
+                return;
+        }
+        
+        if (toolToSelect) {
+            e.preventDefault();
+            initAudio();
+            playSound('click');
+            
+            // Update active tool button
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            const toolButton = document.querySelector(`[data-tool="${toolToSelect}"]`);
+            if (toolButton) {
+                toolButton.classList.add('active');
+                currentTool = toolToSelect;
+                updateToolUI();
+                updateCursor();
+            }
+        }
+    }
+});
 
 console.log('🎨 EmojiPix loaded! Have fun drawing!');
 

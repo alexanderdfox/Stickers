@@ -4,6 +4,9 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 
 ## 🌟 Highlights
 
+- **↶↷ Undo/Redo** - Full history management with 50-step memory and keyboard shortcuts
+- **⌨️ Keyboard Shortcuts** - Number keys (1-9,0) for instant tool switching
+- **🔄 Rotatable Stamps** - Mouse wheel rotation for emoji/text stamps
 - **📑 Professional Layer System** - Multi-layer support with opacity, visibility, and reordering
 - **🖱️ Dynamic Emoji Cursors** - See exactly what you'll stamp with real-time cursor preview
 - **🏁 800+ Stamps** - Including flags from 80+ countries
@@ -11,20 +14,22 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 - **🔤 20 Fonts** - Full typography support with case toggle
 - **📱 Mobile Optimized** - Touch-friendly interface for iOS and Android
 - **🔊 Sound Effects** - Kid Pix-style audio feedback
-- **✨ Special Effects** - Rainbow mode and sparkle effects
+- **✨ Special Effects** - Rainbow and sparkle modes for ALL tools
 
 ## ✨ Features
 
 ### 🖌️ Drawing Tools
 
-- **✏️ Pencil** - Classic freehand drawing
-- **📏 Line** - Draw perfectly straight lines between two points
-- **🧽 Eraser** - Remove mistakes (2x brush size)
-- **🪣 Fill** - Flood fill areas with colors or patterns
-- **💨 Spray Paint** - Spray can effect with random particle distribution
-- **⭕ Circle** - Click and drag to draw circles of any size
-- **⬜ Square/Rectangle** - Click and drag to draw rectangles
-- **🎯 Stamp** - Place emojis and text characters on your canvas
+- **✏️ Pencil** - Classic freehand drawing (press **1**)
+- **📏 Line** - Draw perfectly straight lines between two points (press **2**)
+- **🧽 Eraser** - Remove mistakes (2x brush size) (press **3**)
+- **🪣 Fill** - Flood fill areas with colors or patterns (press **4**)
+- **💨 Spray Paint** - Spray can effect with random particle distribution (press **5**)
+- **⭕ Circle** - Click and drag to draw circles of any size (press **6**)
+- **⬜ Square/Rectangle** - Click and drag to draw rectangles (press **7**)
+- **🎯 Stamp** - Place emojis and text characters with rotation support (press **8**)
+
+**All tools support Rainbow 🌈 and Sparkle ✨ effects!**
 
 ### 🎨 Color System
 
@@ -32,8 +37,10 @@ A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patte
 - **🎨 32-bit Color Wheel** - Pick from 16.7 million colors
 - **Secondary Color Picker** - For two-color patterns
 - **Live Hex Display** - See the current color code
-- **🌈 Rainbow Mode** - Draw in continuously changing rainbow colors
-- **✨ Sparkle Mode** - Add sparkle effects as you draw
+- **🌈 Rainbow Mode** - Draw in continuously changing rainbow colors (works with ALL tools!)
+  - Pencil, Line, Spray, Stamp text, Circle/Square strokes, and Fill!
+- **✨ Sparkle Mode** - Add sparkle effects as you draw (works with ALL tools!)
+  - Sparkles appear with Pencil, Line, Spray, Stamp, Circle, Square, and Fill!
 
 ### 🎭 Fill Patterns
 
@@ -58,6 +65,8 @@ All patterns work with circles, squares, and the fill tool!
 - **20 Fonts** - Arial, Times New Roman, Comic Sans MS, Impact, and more!
 - **Font Preview** - See your selected font before stamping
 - **Dynamic Cursor** - See exactly what emoji/character you'll stamp before clicking!
+- **🔄 Rotation** - Use mouse wheel to rotate stamps by 15° increments
+- **Reset Rotation** - Press **R** to reset to 0° or click reset button
 
 #### 800+ Emoji Stamps
 Organized in 9 categories:
@@ -73,8 +82,8 @@ Organized in 9 categories:
 
 ### ✂️ Selection & Clipboard
 
-- **⭕ Circle Select** - Select circular regions of any size
-- **⬜ Rectangle Select** - Select rectangular areas
+- **⭕ Circle Select** - Select circular regions of any size (press **9**)
+- **⬜ Rectangle Select** - Select rectangular areas (press **0**)
 - **📋 Copy** - Copy selected area to clipboard
 - **✂️ Cut** - Cut selected area (clears to white)
 - **📌 Paste** - Paste clipboard content anywhere on canvas
@@ -115,6 +124,23 @@ Professional multi-layer support for complex artwork:
 - **Layer-Aware Tools** - All drawing tools work on the active layer
 - **Smart Save** - Save button merges all visible layers
 - **Layer-Specific Clear** - Clear button only affects active layer
+
+### ↶↷ Undo/Redo System
+
+Full history management for worry-free creativity:
+
+- **50-Step History** - Stores up to 50 actions in memory
+- **Undo** - Press **Ctrl/Cmd + Z** or click ↶ Undo button
+- **Redo** - Press **Ctrl/Cmd + Shift + Z** or click ↷ Redo button
+- **Smart State Management** - Automatically saves after:
+  - Drawing with any tool (pencil, line, shapes, etc.)
+  - Stamping emojis or text
+  - Using fill tool
+  - Pasting selections
+  - Layer operations (add, delete, duplicate, merge, clear)
+  - Opacity changes (debounced for performance)
+- **Visual Feedback** - Buttons disabled when no undo/redo available
+- **Layer-Aware** - Restores entire layer state including visibility and opacity
 
 ### 💾 File Operations
 
@@ -195,10 +221,18 @@ All sounds are throttled and non-intrusive!
 5. Create patterns by pasting multiple times!
 
 ### Drawing Straight Lines
-1. Select the Line tool
+1. Select the Line tool (press **2**)
 2. Click starting point
 3. Drag to endpoint
 4. Release to draw the line
+
+### Rotating Stamps
+1. Select the Stamp tool (press **8**)
+2. Choose any emoji or text character
+3. Hover over canvas and scroll mouse wheel to rotate
+4. Watch the cursor preview update in real-time
+5. Press **R** to reset rotation to 0°
+6. Click to place the rotated stamp
 
 ### Working with Layers
 1. Click ➕ to add a new layer
@@ -219,18 +253,43 @@ All sounds are throttled and non-intrusive!
 6. Merge layers as you finish sections
 7. Save when complete (all visible layers are combined)
 
-## 🎨 Keyboard Shortcuts
+## ⌨️ Keyboard Shortcuts
 
-Currently, all functions are accessible via the toolbar interface. Keyboard shortcuts may be added in future versions.
+### Tool Selection (Press number keys 1-9, 0)
+- **1** - Pencil ✏️
+- **2** - Line 📏
+- **3** - Eraser 🧽
+- **4** - Fill 🪣
+- **5** - Spray Paint 💨
+- **6** - Circle ⭕
+- **7** - Square ⬜
+- **8** - Stamp 🎯
+- **9** - Circle Select ⭕
+- **0** - Rectangle Select ⬜
+
+### History & Editing
+- **Ctrl/Cmd + Z** - Undo (up to 50 steps)
+- **Ctrl/Cmd + Shift + Z** or **Ctrl + Y** - Redo
+- **R** - Reset stamp rotation to 0° (when stamp tool is active)
+
+### Stamp Tool
+- **Mouse Wheel Up** - Rotate stamp counter-clockwise (15° per notch)
+- **Mouse Wheel Down** - Rotate stamp clockwise (15° per notch)
+- **R** - Reset rotation to 0°
+
+All shortcuts work globally except when typing in input fields.
 
 ## 📝 Technical Details
 
 - **Canvas Size**: 800x600 pixels per layer
 - **Color Depth**: 32-bit RGBA
 - **Layer System**: Multi-layer architecture with transparency and blending
-- **Dynamic Cursors**: Real-time emoji/character cursor generation
-- **Audio**: Web Audio API for sound synthesis
-- **Patterns**: Dynamic canvas pattern generation
+- **History Management**: 50-step undo/redo with full layer state restoration
+- **Keyboard Support**: Number key shortcuts (1-9, 0) + standard editing shortcuts
+- **Dynamic Cursors**: Real-time emoji/character cursor generation with rotation
+- **Stamp Rotation**: 360° rotation with 15° increments via mouse wheel
+- **Audio**: Web Audio API for sound synthesis with pitch variation
+- **Patterns**: Dynamic canvas pattern generation with rainbow support
 - **Performance**: Optimized for smooth 60fps drawing with multiple layers
 
 ## 🛠️ Built With
@@ -249,8 +308,12 @@ This project is inspired by the classic Kid Pix drawing program, featuring:
 - Spray paint tool with particle effects
 - Easy-to-use colorful interface
 - Modern enhancements:
+  - **Undo/Redo system** with 50-step history
+  - **Keyboard shortcuts** for instant tool switching
+  - **Rotatable stamps** with mouse wheel control
+  - **Rainbow & Sparkle** effects for ALL tools
   - Professional layer system
-  - Dynamic emoji cursors
+  - Dynamic emoji cursors with rotation
   - Advanced pattern fills
   - Mobile touch support
   - 20 font choices

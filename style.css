@@ -107,6 +107,33 @@ header p {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+    position: relative;
+}
+
+.tool-btn::after {
+    content: attr(data-shortcut);
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: rgba(102, 126, 234, 0.15);
+    color: #667eea;
+    font-size: 0.7em;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.tool-btn:hover::after {
+    opacity: 1;
+    background: rgba(102, 126, 234, 0.25);
+}
+
+.tool-btn.active::after {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    opacity: 1;
 }
 
 .tool-btn:hover, .effect-btn:hover {
@@ -124,11 +151,15 @@ header p {
     transform: translateY(0);
 }
 
-.selection-actions {
+.selection-actions, .history-actions {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     margin-top: 12px;
+}
+
+.selection-actions {
+    grid-template-columns: repeat(3, 1fr);
 }
 
 .action-btn {
@@ -310,6 +341,29 @@ header p {
     display: inline-block;
     min-width: 35px;
     text-align: center;
+}
+
+.rotation-display {
+    text-align: center;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+    border-radius: 10px;
+    border: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+#rotation-angle {
+    display: block;
+    font-weight: 700;
+    font-size: 1.8em;
+    color: #667eea;
+    margin-bottom: 4px;
+}
+
+.rotation-hint {
+    font-size: 0.75em;
+    color: #6c757d;
+    font-weight: 500;
+    opacity: 0.8;
 }
 
 .pattern-grid {
@@ -689,6 +743,14 @@ header p {
 .effect-btn:hover {
     background: linear-gradient(135deg, #ffd700 0%, #fdc830 100%);
     box-shadow: 0 4px 12px rgba(253, 203, 48, 0.3);
+}
+
+.effect-btn.active {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    border-color: #c92a2a;
+    color: white;
+    box-shadow: 0 4px 12px rgba(238, 90, 111, 0.4);
+    transform: scale(1.05);
 }
 
 .save-btn {
