@@ -2,9 +2,22 @@
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size
-canvas.width = 800;
-canvas.height = 600;
+// Set canvas size - responsive for mobile
+function setCanvasSize() {
+    if (window.innerWidth <= 768) {
+        // Mobile: smaller canvas for better performance
+        const maxWidth = Math.min(600, window.innerWidth - 40);
+        const maxHeight = Math.min(450, window.innerHeight * 0.5);
+        canvas.width = maxWidth;
+        canvas.height = maxHeight;
+    } else {
+        // Desktop: full size
+        canvas.width = 800;
+        canvas.height = 600;
+    }
+}
+
+setCanvasSize();
 
 // Layer Management
 let layers = [];
@@ -181,6 +194,9 @@ function createLayer(name = null) {
 }
 
 function initializeLayers() {
+    // Clear any existing layers
+    layers = [];
+    
     // Create background layer with white background
     const backgroundLayer = createLayer('Background');
     backgroundLayer.ctx.fillStyle = 'white';
@@ -433,6 +449,13 @@ function updateLayersList() {
             setActiveLayer(index);
         });
         
+        // Touch-friendly layer selection
+        layerItem.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setActiveLayer(index);
+        }, { passive: false });
+        
         layersList.appendChild(layerItem);
     });
     
@@ -566,6 +589,12 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentTool = btn.dataset.tool;
+        
+        // Clear any selection outlines when switching tools
+        if (currentTool !== 'select-circle' && currentTool !== 'select-square' && currentTool !== 'paste') {
+            renderCanvas(); // Re-render to clear selection outlines
+        }
+        
         updateToolUI();
         updateCursor();
     });
@@ -628,24 +657,56 @@ document.querySelectorAll('.color-btn').forEach(btn => {
 // Color picker (color wheel)
 const colorPicker = document.getElementById('color-picker');
 const colorHex = document.getElementById('color-hex');
+
+function updateColorFromPicker(value) {
+    currentColor = value;
+    colorHex.textContent = value.toUpperCase();
+    rainbowMode = false;
+    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+    if (currentTool === 'stamp') updateCursor();
+}
+
 if (colorPicker && colorHex) {
     colorPicker.addEventListener('input', (e) => {
         initAudio();
-        currentColor = e.target.value;
-        colorHex.textContent = e.target.value.toUpperCase();
-        rainbowMode = false;
-        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-        if (currentTool === 'stamp') updateCursor();
+        updateColorFromPicker(e.target.value);
+    });
+    
+    // Additional change event for iOS
+    colorPicker.addEventListener('change', (e) => {
+        initAudio();
+        updateColorFromPicker(e.target.value);
+    });
+    
+    // Improve iOS color picker opening
+    colorPicker.addEventListener('click', (e) => {
+        initAudio();
+        // Force iOS to show color picker
+        e.target.focus();
     });
 }
 
 // Brush size
 const brushSizeSlider = document.getElementById('brush-size');
 const sizeDisplay = document.getElementById('size-display');
-brushSizeSlider.addEventListener('input', (e) => {
-    brushSize = e.target.value;
+
+function updateBrushSize(value) {
+    brushSize = value;
     sizeDisplay.textContent = brushSize;
     if (currentTool === 'stamp') updateCursor();
+}
+
+brushSizeSlider.addEventListener('input', (e) => {
+    updateBrushSize(e.target.value);
+});
+
+// Better touch handling for sliders on iOS
+brushSizeSlider.addEventListener('touchmove', (e) => {
+    e.stopPropagation(); // Prevent scroll while adjusting
+}, { passive: false });
+
+brushSizeSlider.addEventListener('change', (e) => {
+    updateBrushSize(e.target.value);
 });
 
 // Font selector
@@ -699,6 +760,18 @@ if (secondaryColorPicker) {
         initAudio();
         secondaryColor = e.target.value;
     });
+    
+    // Additional change event for iOS
+    secondaryColorPicker.addEventListener('change', (e) => {
+        initAudio();
+        secondaryColor = e.target.value;
+    });
+    
+    // Improve iOS color picker opening
+    secondaryColorPicker.addEventListener('click', (e) => {
+        initAudio();
+        e.target.focus();
+    });
 }
 
 // Selection action buttons
@@ -706,57 +779,92 @@ const copyBtn = document.getElementById('copy-btn');
 const cutBtn = document.getElementById('cut-btn');
 const pasteBtn = document.getElementById('paste-btn');
 
+function handleCopy() {
+    if (selectionData) {
+        initAudio();
+        playSound('click');
+        // Copy the selection data and bounds to clipboard
+        clipboard = {
+            imageData: selectionData,
+            type: selectionType,
+            bounds: { ...selectionBounds }  // Create a copy of bounds object
+        };
+        pasteBtn.disabled = false;
+        selectionData = null;
+        selectionBounds = null;
+        
+        // Visual feedback for mobile
+        showToast('✓ Copied to clipboard');
+    }
+}
+
+function handleCut() {
+    if (selectionData) {
+        initAudio();
+        playSound('click');
+        // Copy the selection data and bounds to clipboard
+        clipboard = {
+            imageData: selectionData,
+            type: selectionType,
+            bounds: { ...selectionBounds }  // Create a copy of bounds object
+        };
+        pasteBtn.disabled = false;
+        
+        // Clear the selected area
+        clearSelection();
+        selectionData = null;
+        selectionBounds = null;
+        
+        // Save history after cutting
+        saveHistory();
+        
+        // Visual feedback for mobile
+        showToast('✓ Cut to clipboard');
+    }
+}
+
+function handlePaste() {
+    if (clipboard) {
+        initAudio();
+        playSound('click');
+        currentTool = 'paste';
+        // Switch to paste mode
+        showToast('Tap canvas to paste');
+    }
+}
+
+// Show toast notification for mobile feedback
+function showToast(message) {
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Remove after 2 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
 if (copyBtn) {
-    copyBtn.addEventListener('click', () => {
-        if (selectionData) {
-            initAudio();
-            playSound('click');
-            // Copy the selection data and bounds to clipboard
-            clipboard = {
-                imageData: selectionData,
-                type: selectionType,
-                bounds: { ...selectionBounds }  // Create a copy of bounds object
-            };
-            pasteBtn.disabled = false;
-            selectionData = null;
-            selectionBounds = null;
-        }
-    });
+    copyBtn.addEventListener('click', handleCopy);
 }
 
 if (cutBtn) {
-    cutBtn.addEventListener('click', () => {
-        if (selectionData) {
-            initAudio();
-            playSound('click');
-            // Copy the selection data and bounds to clipboard
-            clipboard = {
-                imageData: selectionData,
-                type: selectionType,
-                bounds: { ...selectionBounds }  // Create a copy of bounds object
-            };
-            pasteBtn.disabled = false;
-            
-            // Clear the selected area
-            clearSelection();
-            selectionData = null;
-            selectionBounds = null;
-            
-            // Save history after cutting
-            saveHistory();
-        }
-    });
+    cutBtn.addEventListener('click', handleCut);
 }
 
 if (pasteBtn) {
-    pasteBtn.addEventListener('click', () => {
-        if (clipboard) {
-            initAudio();
-            playSound('click');
-            currentTool = 'paste';
-            // Switch to paste mode
-        }
-    });
+    pasteBtn.addEventListener('click', handlePaste);
 }
 
 // Emoji stamps
@@ -814,16 +922,31 @@ document.getElementById('layer-toggle').addEventListener('click', () => {
 
 // Layer opacity control
 let opacityChangeTimeout;
-document.getElementById('layer-opacity').addEventListener('input', (e) => {
-    const opacity = e.target.value / 100;
+const layerOpacitySlider = document.getElementById('layer-opacity');
+
+function handleOpacityChange(value) {
+    const opacity = value / 100;
     setLayerOpacity(opacity);
-    document.getElementById('opacity-display').textContent = e.target.value + '%';
+    document.getElementById('opacity-display').textContent = value + '%';
     
     // Save history after user stops adjusting (debounce)
     clearTimeout(opacityChangeTimeout);
     opacityChangeTimeout = setTimeout(() => {
         saveHistory();
     }, 500);
+}
+
+layerOpacitySlider.addEventListener('input', (e) => {
+    handleOpacityChange(e.target.value);
+});
+
+// Better touch handling for opacity slider on iOS
+layerOpacitySlider.addEventListener('touchmove', (e) => {
+    e.stopPropagation(); // Prevent scroll while adjusting
+}, { passive: false });
+
+layerOpacitySlider.addEventListener('change', (e) => {
+    handleOpacityChange(e.target.value);
 });
 
 // Save button - merge all layers
@@ -909,11 +1032,17 @@ canvas.addEventListener('mouseout', (e) => {
 });
 
 // Touch events for mobile (iOS compatible)
+let lastTouchX = 0;
+let lastTouchY = 0;
+
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     initAudio();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    
     const mouseEvent = new MouseEvent('mousedown', {
         clientX: touch.clientX,
         clientY: touch.clientY,
@@ -926,6 +1055,9 @@ canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    
     const mouseEvent = new MouseEvent('mousemove', {
         clientX: touch.clientX,
         clientY: touch.clientY,
@@ -936,7 +1068,10 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
+    // Use last known touch position for touchend
     const mouseEvent = new MouseEvent('mouseup', {
+        clientX: lastTouchX,
+        clientY: lastTouchY,
         bubbles: true
     });
     canvas.dispatchEvent(mouseEvent);
@@ -945,6 +1080,8 @@ canvas.addEventListener('touchend', (e) => {
 canvas.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     const mouseEvent = new MouseEvent('mouseup', {
+        clientX: lastTouchX,
+        clientY: lastTouchY,
         bubbles: true
     });
     canvas.dispatchEvent(mouseEvent);
@@ -977,6 +1114,54 @@ canvas.addEventListener('wheel', (e) => {
         playSound('custom', 400 + (stampRotation / 360) * 200, 0.05);
     }
 }, { passive: false });
+
+// Two-finger rotation for stamp on mobile (iOS)
+let lastTwoFingerAngle = null;
+
+canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2 && currentTool === 'stamp') {
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        lastTwoFingerAngle = Math.atan2(
+            touch2.clientY - touch1.clientY,
+            touch2.clientX - touch1.clientX
+        ) * 180 / Math.PI;
+    }
+}, { passive: true });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && currentTool === 'stamp') {
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentAngle = Math.atan2(
+            touch2.clientY - touch1.clientY,
+            touch2.clientX - touch1.clientX
+        ) * 180 / Math.PI;
+        
+        if (lastTwoFingerAngle !== null) {
+            let angleDiff = currentAngle - lastTwoFingerAngle;
+            
+            // Normalize angle difference to -180 to 180
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+            
+            stampRotation += angleDiff;
+            stampRotation = ((stampRotation % 360) + 360) % 360;
+            
+            updateRotationDisplay();
+            updateCursor();
+        }
+        
+        lastTwoFingerAngle = currentAngle;
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+        lastTwoFingerAngle = null;
+    }
+}, { passive: true });
 
 function startDrawing(e) {
     initAudio();
@@ -1549,6 +1734,8 @@ function drawLine(startX, startY, endX, endY) {
 function selectCircle(startX, startY, endX, endY) {
     const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
     
+    if (radius < 5) return; // Ignore very small selections
+    
     // Get the bounding box
     const left = Math.max(0, Math.floor(startX - radius));
     const top = Math.max(0, Math.floor(startY - radius));
@@ -1583,15 +1770,19 @@ function selectCircle(startX, startY, endX, endY) {
     selectionType = 'circle';
     selectionBounds = { x: startX, y: startY, radius: radius, left: left, top: top, width: width, height: height };
     
-    // Draw selection outline on main canvas for visualization
+    // Clear previous selection outline and draw new one
+    renderCanvas();
     ctx.save();
     ctx.strokeStyle = '#667eea';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 3; // Thicker for better mobile visibility
+    ctx.setLineDash([8, 4]); // Larger dashes for mobile
     ctx.beginPath();
     ctx.arc(startX, startY, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+    
+    // Visual feedback for mobile
+    showToast('Selection created - Copy or Cut');
 }
 
 function selectSquare(startX, startY, endX, endY) {
@@ -1599,6 +1790,8 @@ function selectSquare(startX, startY, endX, endY) {
     const top = Math.min(startY, endY);
     const width = Math.abs(endX - startX);
     const height = Math.abs(endY - startY);
+    
+    if (width < 5 || height < 5) return; // Ignore very small selections
     
     // Get the image data from the active layer
     const activeCtx = getActiveContext();
@@ -1608,13 +1801,17 @@ function selectSquare(startX, startY, endX, endY) {
     selectionType = 'square';
     selectionBounds = { left: left, top: top, width: width, height: height };
     
-    // Draw selection outline on main canvas for visualization
+    // Clear previous selection outline and draw new one
+    renderCanvas();
     ctx.save();
     ctx.strokeStyle = '#667eea';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 3; // Thicker for better mobile visibility
+    ctx.setLineDash([8, 4]); // Larger dashes for mobile
     ctx.strokeRect(left, top, width, height);
     ctx.restore();
+    
+    // Visual feedback for mobile
+    showToast('Selection created - Copy or Cut');
 }
 
 function clearSelection() {
@@ -1873,13 +2070,36 @@ document.addEventListener('click', function initAudioOnClick() {
     document.removeEventListener('click', initAudioOnClick);
 }, { once: true });
 
-// Prevent iOS double-tap zoom on buttons
-const buttons = document.querySelectorAll('button, input[type="color"]');
+// Prevent iOS double-tap zoom on buttons and improve touch handling
+const buttons = document.querySelectorAll('button');
 buttons.forEach(button => {
+    let touchStartTime;
+    button.addEventListener('touchstart', (e) => {
+        touchStartTime = Date.now();
+    }, { passive: true });
+    
     button.addEventListener('touchend', (e) => {
         e.preventDefault();
-        button.click();
+        const touchDuration = Date.now() - touchStartTime;
+        // Only trigger click if it was a quick tap (not a long press or scroll)
+        if (touchDuration < 500) {
+            button.click();
+        }
     }, { passive: false });
+});
+
+// Special handling for color inputs on iOS
+const colorInputs = document.querySelectorAll('input[type="color"]');
+colorInputs.forEach(input => {
+    // Ensure color picker works on iOS
+    input.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+    }, { passive: true });
+    
+    // Force iOS to open color picker
+    input.addEventListener('focus', () => {
+        input.click();
+    });
 });
 
 // Fix iOS viewport height issue
@@ -1900,6 +2120,14 @@ if (fontPreview) {
 
 // Initialize cursor
 updateCursor();
+
+// Start with layer panel collapsed on mobile for more canvas space
+if (window.innerWidth <= 768) {
+    const layerPanel = document.querySelector('.layer-panel');
+    if (layerPanel) {
+        layerPanel.classList.add('collapsed');
+    }
+}
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
@@ -1955,9 +2183,11 @@ document.addEventListener('keydown', (e) => {
                 toolToSelect = 'stamp';
                 break;
             case '[':
+            case '{':
                 toolToSelect = 'select-circle';
                 break;
             case ']':
+            case '}':
                 toolToSelect = 'select-square';
                 break;
             case 'r':

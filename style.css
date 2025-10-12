@@ -68,6 +68,9 @@ header p {
     overflow-y: auto;
     max-height: calc(100vh - 200px);
     padding-right: 8px;
+    /* Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .tool-section {
@@ -364,6 +367,20 @@ header p {
     color: #6c757d;
     font-weight: 500;
     opacity: 0.8;
+}
+
+.mobile-hint {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .desktop-hint {
+        display: none;
+    }
+    
+    .mobile-hint {
+        display: inline;
+    }
 }
 
 .pattern-grid {
@@ -815,6 +832,8 @@ header p {
     padding: 20px;
     overflow: hidden;
     position: relative;
+    /* Prevent overscroll on iOS */
+    overscroll-behavior: contain;
 }
 
 #drawing-canvas {
@@ -827,10 +846,39 @@ header p {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+    /* Ensure canvas is responsive on mobile */
+    max-width: 100%;
+    height: auto;
 }
 
 #drawing-canvas:hover {
     box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15);
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* iOS Safari specific styles */
+    body {
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    #drawing-canvas {
+        /* Prevent rubber-band scrolling on canvas */
+        overscroll-behavior: contain;
+    }
+    
+    input[type="color"] {
+        /* Better color picker on iOS */
+        -webkit-appearance: none;
+        border: 2px solid #dee2e6;
+        padding: 0;
+    }
+    
+    input[type="range"] {
+        /* Better slider appearance on iOS */
+        -webkit-appearance: none;
+    }
 }
 
 /* Layer Panel Styles */
@@ -1229,15 +1277,34 @@ header p {
         bottom: 12px;
         right: 12px;
         left: 12px;
+        /* Start collapsed on mobile for more canvas space */
+        max-height: 56px;
+    }
+    
+    .layer-panel:not(.collapsed) {
+        max-height: 400px;
     }
     
     .layers-list {
         max-height: 180px;
+        -webkit-overflow-scrolling: touch;
     }
     
     .layer-control-btn {
         font-size: 1em;
         padding: 10px;
+    }
+    
+    /* Larger tap target for layer panel toggle on mobile */
+    .layer-panel-header {
+        min-height: 48px;
+        padding: 14px 16px;
+    }
+    
+    .layer-toggle-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1em;
     }
 }
 
@@ -1260,6 +1327,64 @@ header p {
     
     .emoji-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Toast notification for mobile feedback */
+.toast-notification {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 10000;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    opacity: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+}
+
+.toast-notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+    .action-btn,
+    .layer-control-btn,
+    .layer-visibility-btn,
+    .layer-move-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .color-btn {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    .emoji-btn {
+        min-height: 48px;
+        min-width: 48px;
+    }
+    
+    /* Improve layer item touch targets */
+    .layer-item {
+        padding: 12px;
+        margin: 6px 4px;
+    }
+    
+    /* Better spacing for touch */
+    .selection-actions,
+    .history-actions {
+        gap: 10px;
     }
 }
 
