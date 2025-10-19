@@ -44,6 +44,7 @@
                     <button class="tool-btn" data-tool="square" data-shortcut="7" title="Square (Press 7)">⬜ Square</button>
                     <button class="tool-btn" data-tool="triangle" data-shortcut="8" title="Triangle (Press 8)">🔺 Triangle</button>
                     <button class="tool-btn" data-tool="star" data-shortcut="9" title="Star (Press 9)">⭐ Star</button>
+                    <button class="tool-btn" data-tool="arc" data-shortcut="a" title="Arc (Press A)">🌙 Arc</button>
                     <button class="tool-btn" data-tool="stamp" data-shortcut="0" title="Stamp (Press 0)">🎯 Stamp</button>
                     </div>
                 </div>
@@ -153,6 +154,24 @@
                         </div>
                     </div>
                     <button class="action-btn" id="reset-rotation-btn" title="Reset Rotation (Press R)" style="width: 100%; margin-top: 8px;">↻ Reset</button>
+                    </div>
+                </div>
+
+                <div class="tool-section" id="arc-angle-section" style="display: none;">
+                    <h3 class="section-header">
+                        <span>🌙 Arc Angle</span>
+                        <button class="section-collapse-btn" title="Toggle section">▼</button>
+                    </h3>
+                    <div class="section-content">
+                    <div class="rotation-display">
+                        <span id="arc-angle-display">90°</span>
+                        <div class="rotation-hint">
+                            <span class="desktop-hint">Mouse wheel to adjust</span>
+                            <span class="mobile-hint">Two fingers to adjust</span>
+                            <span> • Press G to reset</span>
+                        </div>
+                    </div>
+                    <button class="action-btn" id="reset-arc-angle-btn" title="Reset Arc Angle (Press G)" style="width: 100%; margin-top: 8px;">↻ Reset to 90°</button>
                     </div>
                 </div>
 
@@ -1262,6 +1281,7 @@
                                     <span>7</span><span>Square ⬜</span>
                                     <span>8</span><span>Triangle 🔺</span>
                                     <span>9</span><span>Star ⭐</span>
+                                    <span>A</span><span>Arc 🌙</span>
                                     <span>0</span><span>Stamp 🎯</span>
                                     <span>[</span><span>Circle Select</span>
                                     <span>]</span><span>Square Select</span>

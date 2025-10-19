@@ -98,6 +98,7 @@ let secondaryColor = '#FFFFFF';
 let shapeStartX = 0;
 let shapeStartY = 0;
 let stampRotation = 0; // Rotation angle in degrees for stamp tool
+let arcSweepAngle = 90; // Arc sweep angle in degrees (0-360)
 let canvasZoom = 1; // Canvas zoom level (1 = 100%)
 let exportScale = 1; // Export resolution multiplier
 
@@ -902,6 +903,7 @@ document.querySelectorAll('.tool-btn').forEach(btn => {
 // Update UI based on selected tool
 function updateToolUI() {
     const rotationSection = document.getElementById('rotation-section');
+    const arcAngleSection = document.getElementById('arc-angle-section');
     
     if (currentTool === 'stamp') {
         // Show rotation section for stamp tool
@@ -909,10 +911,25 @@ function updateToolUI() {
             rotationSection.style.display = 'block';
             updateRotationDisplay();
         }
-    } else {
-        // Hide rotation section for other tools
+        if (arcAngleSection) {
+            arcAngleSection.style.display = 'none';
+        }
+    } else if (currentTool === 'arc') {
+        // Show arc angle section for arc tool
+        if (arcAngleSection) {
+            arcAngleSection.style.display = 'block';
+            updateArcAngleDisplay();
+        }
         if (rotationSection) {
             rotationSection.style.display = 'none';
+        }
+    } else {
+        // Hide both sections for other tools
+        if (rotationSection) {
+            rotationSection.style.display = 'none';
+        }
+        if (arcAngleSection) {
+            arcAngleSection.style.display = 'none';
         }
     }
 }
@@ -938,6 +955,29 @@ function resetRotation() {
 const resetRotationBtn = document.getElementById('reset-rotation-btn');
 if (resetRotationBtn) {
     resetRotationBtn.addEventListener('click', resetRotation);
+}
+
+// Arc angle display and control
+function updateArcAngleDisplay() {
+    const arcAngleDisplay = document.getElementById('arc-angle-display');
+    if (arcAngleDisplay) {
+        arcAngleDisplay.textContent = `${Math.round(arcSweepAngle)}°`;
+    }
+}
+
+// Reset arc angle
+function resetArcAngle() {
+    arcSweepAngle = 90;
+    updateArcAngleDisplay();
+    initAudio();
+    playSound('click');
+    showToast('Arc angle reset to 90°');
+}
+
+// Reset arc angle button
+const resetArcAngleBtn = document.getElementById('reset-arc-angle-btn');
+if (resetArcAngleBtn) {
+    resetArcAngleBtn.addEventListener('click', resetArcAngle);
 }
 
 // Color buttons
@@ -1735,7 +1775,7 @@ canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDrawing);
 canvas.addEventListener('mouseout', (e) => {
     if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'triangle' || 
-        currentTool === 'star' || currentTool === 'line' || 
+        currentTool === 'star' || currentTool === 'arc' || currentTool === 'line' || 
         currentTool === 'select-circle' || currentTool === 'select-square') {
         // Don't complete action if mouse leaves canvas
         if (isDrawing) {
@@ -1868,54 +1908,116 @@ canvas.addEventListener('wheel', (e) => {
         // Play a subtle sound
         initAudio();
         playSound('custom', 400 + (stampRotation / 360) * 200, 0.05);
+    } else if (currentTool === 'arc') {
+        e.preventDefault();
+        
+        // Adjust arc angle based on wheel delta
+        const angleStep = 15; // degrees per wheel notch
+        if (e.deltaY < 0) {
+            // Scroll up - increase angle
+            arcSweepAngle += angleStep;
+        } else {
+            // Scroll down - decrease angle
+            arcSweepAngle -= angleStep;
+        }
+        
+        // Clamp arc angle to 15-360 range
+        arcSweepAngle = Math.max(15, Math.min(360, arcSweepAngle));
+        
+        // Update UI
+        updateArcAngleDisplay();
+        
+        // Play a subtle sound
+        initAudio();
+        playSound('custom', 300 + (arcSweepAngle / 360) * 300, 0.05);
     }
 }, { passive: false });
 
-// Two-finger rotation for stamp on mobile (iOS)
+// Two-finger gestures for stamp rotation and arc angle adjustment on mobile (iOS)
 let lastTwoFingerAngle = null;
+let lastTwoFingerDistance = null;
 
 canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2 && currentTool === 'stamp') {
+    if (e.touches.length === 2 && (currentTool === 'stamp' || currentTool === 'arc')) {
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
-        lastTwoFingerAngle = Math.atan2(
-            touch2.clientY - touch1.clientY,
-            touch2.clientX - touch1.clientX
-        ) * 180 / Math.PI;
+        
+        if (currentTool === 'stamp') {
+            lastTwoFingerAngle = Math.atan2(
+                touch2.clientY - touch1.clientY,
+                touch2.clientX - touch1.clientX
+            ) * 180 / Math.PI;
+        } else if (currentTool === 'arc') {
+            // For arc, track distance between fingers to adjust angle
+            lastTwoFingerDistance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
+        }
     }
 }, { passive: true });
 
 canvas.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2 && currentTool === 'stamp') {
-        e.preventDefault();
+    if (e.touches.length === 2) {
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
-        const currentAngle = Math.atan2(
-            touch2.clientY - touch1.clientY,
-            touch2.clientX - touch1.clientX
-        ) * 180 / Math.PI;
         
-        if (lastTwoFingerAngle !== null) {
-            let angleDiff = currentAngle - lastTwoFingerAngle;
+        if (currentTool === 'stamp') {
+            e.preventDefault();
+            const currentAngle = Math.atan2(
+                touch2.clientY - touch1.clientY,
+                touch2.clientX - touch1.clientX
+            ) * 180 / Math.PI;
             
-            // Normalize angle difference to -180 to 180
-            if (angleDiff > 180) angleDiff -= 360;
-            if (angleDiff < -180) angleDiff += 360;
+            if (lastTwoFingerAngle !== null) {
+                let angleDiff = currentAngle - lastTwoFingerAngle;
+                
+                // Normalize angle difference to -180 to 180
+                if (angleDiff > 180) angleDiff -= 360;
+                if (angleDiff < -180) angleDiff += 360;
+                
+                stampRotation += angleDiff;
+                stampRotation = ((stampRotation % 360) + 360) % 360;
+                
+                updateRotationDisplay();
+                updateCursor();
+            }
             
-            stampRotation += angleDiff;
-            stampRotation = ((stampRotation % 360) + 360) % 360;
+            lastTwoFingerAngle = currentAngle;
+        } else if (currentTool === 'arc') {
+            e.preventDefault();
+            const currentDistance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
             
-            updateRotationDisplay();
-            updateCursor();
+            if (lastTwoFingerDistance !== null) {
+                // Pinch/spread adjusts arc sweep angle
+                const distanceDiff = currentDistance - lastTwoFingerDistance;
+                const angleChange = distanceDiff * 0.5; // Sensitivity factor
+                
+                arcSweepAngle += angleChange;
+                // Clamp to 15-360 range
+                arcSweepAngle = Math.max(15, Math.min(360, arcSweepAngle));
+                
+                updateArcAngleDisplay();
+                
+                // Play subtle sound
+                if (Math.abs(angleChange) > 1) {
+                    initAudio();
+                    playSound('custom', 300 + (arcSweepAngle / 360) * 300, 0.03);
+                }
+            }
+            
+            lastTwoFingerDistance = currentDistance;
         }
-        
-        lastTwoFingerAngle = currentAngle;
     }
 }, { passive: false });
 
 canvas.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
         lastTwoFingerAngle = null;
+        lastTwoFingerDistance = null;
     }
 }, { passive: true });
 
@@ -1946,7 +2048,7 @@ function startDrawing(e) {
         saveHistory();
         isDrawing = false;
     } else if (currentTool === 'circle' || currentTool === 'square' || currentTool === 'triangle' || 
-               currentTool === 'star' || currentTool === 'line' || 
+               currentTool === 'star' || currentTool === 'arc' || currentTool === 'line' || 
                currentTool === 'select-circle' || currentTool === 'select-square') {
         // Store starting position for shapes, lines, and selections
         shapeStartX = x;
@@ -1995,6 +2097,9 @@ function stopDrawing(e) {
             playSound('stamp');
         } else if (currentTool === 'star') {
             drawStar(shapeStartX, shapeStartY, x, y);
+            playSound('stamp');
+        } else if (currentTool === 'arc') {
+            drawArc(shapeStartX, shapeStartY, x, y);
             playSound('stamp');
         } else if (currentTool === 'line') {
             drawLine(shapeStartX, shapeStartY, x, y);
@@ -2470,6 +2575,69 @@ function drawStar(startX, startY, endX, endY) {
     updateLayersList();
 }
 
+function drawArc(startX, startY, endX, endY) {
+    const activeCtx = getActiveContext();
+    
+    // Calculate radius based on distance from start to end point
+    const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+    
+    // Calculate the starting angle based on the direction from start to end
+    const baseAngle = Math.atan2(endY - startY, endX - startX);
+    
+    // Convert arc sweep angle from degrees to radians
+    const sweepRadians = (arcSweepAngle * Math.PI) / 180;
+    
+    // Calculate start and end angles
+    // Center the arc around the base angle
+    const startAngle = baseAngle - sweepRadians / 2;
+    const endAngle = baseAngle + sweepRadians / 2;
+    
+    activeCtx.beginPath();
+    activeCtx.arc(startX, startY, radius, startAngle, endAngle, false);
+    
+    // Apply pattern fill if there's a fill pattern
+    const fillStyle = createPattern();
+    if (fillStyle !== null && radius > 10) {
+        // For arc, we'll fill a pie slice
+        activeCtx.lineTo(centerX, centerY);
+        activeCtx.closePath();
+        activeCtx.fillStyle = fillStyle;
+        activeCtx.fill();
+        // Redraw the arc outline
+        activeCtx.beginPath();
+        activeCtx.arc(centerX, centerY, radius, startAngle, endAngle, counterClockwise);
+    }
+    
+    // Apply rainbow mode to stroke
+    if (rainbowMode) {
+        rainbowHue = (rainbowHue + 10) % 360;
+        activeCtx.strokeStyle = `hsl(${rainbowHue}, 100%, 50%)`;
+    } else {
+        activeCtx.strokeStyle = currentColor;
+    }
+    activeCtx.lineWidth = Math.max(brushSize / 2, 2);
+    activeCtx.lineCap = 'round';
+    activeCtx.stroke();
+    
+    if (sparkleMode) {
+        // Add sparkles along the arc
+        const sparkleCount = Math.min(Math.floor(radius / 20), 12);
+        for (let i = 0; i <= sparkleCount; i++) {
+            const t = i / sparkleCount;
+            const angle = startAngle + (endAngle - startAngle) * t;
+            const sparkleX = centerX + radius * Math.cos(angle);
+            const sparkleY = centerY + radius * Math.sin(angle);
+            addSparkles(sparkleX, sparkleY);
+        }
+        // Add sparkles at start and end points
+        addSparkles(startX, startY);
+        addSparkles(endX, endY);
+    }
+    
+    renderCanvas();
+    updateLayersList();
+}
+
 function drawLine(startX, startY, endX, endY) {
     const activeCtx = getActiveContext();
     activeCtx.beginPath();
@@ -2760,6 +2928,7 @@ function updateCursor() {
         'square': 'crosshair',
         'triangle': 'crosshair',
         'star': 'crosshair',
+        'arc': 'crosshair',
         'fill': 'cell',
         'spray': 'crosshair',
         'select-circle': 'crosshair',
@@ -2947,6 +3116,16 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         zoomOut();
     }
+    // R key to reset stamp rotation
+    else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        resetRotation();
+    }
+    // G key to reset arc angle
+    else if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        resetArcAngle();
+    }
     // Sidebar toggle (Tab key)
     else if (e.key === 'Tab') {
         e.preventDefault();
@@ -2983,6 +3162,10 @@ document.addEventListener('keydown', (e) => {
                 break;
             case '9':
                 toolToSelect = 'star';
+                break;
+            case 'a':
+            case 'A':
+                toolToSelect = 'arc';
                 break;
             case '0':
                 toolToSelect = 'stamp';
