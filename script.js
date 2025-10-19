@@ -2599,13 +2599,13 @@ function drawArc(startX, startY, endX, endY) {
     const fillStyle = createPattern();
     if (fillStyle !== null && radius > 10) {
         // For arc, we'll fill a pie slice
-        activeCtx.lineTo(centerX, centerY);
+        activeCtx.lineTo(startX, startY);
         activeCtx.closePath();
         activeCtx.fillStyle = fillStyle;
         activeCtx.fill();
         // Redraw the arc outline
         activeCtx.beginPath();
-        activeCtx.arc(centerX, centerY, radius, startAngle, endAngle, counterClockwise);
+        activeCtx.arc(startX, startY, radius, startAngle, endAngle, false);
     }
     
     // Apply rainbow mode to stroke
@@ -2625,8 +2625,8 @@ function drawArc(startX, startY, endX, endY) {
         for (let i = 0; i <= sparkleCount; i++) {
             const t = i / sparkleCount;
             const angle = startAngle + (endAngle - startAngle) * t;
-            const sparkleX = centerX + radius * Math.cos(angle);
-            const sparkleY = centerY + radius * Math.sin(angle);
+            const sparkleX = startX + radius * Math.cos(angle);
+            const sparkleY = startY + radius * Math.sin(angle);
             addSparkles(sparkleX, sparkleY);
         }
         // Add sparkles at start and end points
