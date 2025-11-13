@@ -95,6 +95,7 @@ let selectedFont = 'Arial';
 let textCase = 'upper'; // 'upper' or 'lower'
 let fillPattern = 'solid';
 let secondaryColor = '#FFFFFF';
+let mirrorMode = false;
 let shapeStartX = 0;
 let shapeStartY = 0;
 let stampRotation = 0; // Rotation angle in degrees for stamp tool
@@ -1125,6 +1126,23 @@ if (secondaryColorPicker) {
     secondaryColorPicker.addEventListener('click', (e) => {
         initAudio();
         e.target.focus();
+    });
+}
+
+// Mirror mode toggle
+const mirrorToggleBtn = document.getElementById('mirror-toggle-btn');
+if (mirrorToggleBtn) {
+    mirrorToggleBtn.setAttribute('aria-pressed', 'false');
+    mirrorToggleBtn.addEventListener('click', () => {
+        initAudio();
+        playSound('click');
+        mirrorMode = !mirrorMode;
+        mirrorToggleBtn.classList.toggle('is-active', mirrorMode);
+        mirrorToggleBtn.setAttribute('aria-pressed', mirrorMode.toString());
+        showToast(mirrorMode ? 'Mirror mode enabled' : 'Mirror mode disabled');
+        if (currentTool === 'stamp') {
+            updateCursor();
+        }
     });
 }
 
@@ -2240,6 +2258,9 @@ function stampEmoji(x, y) {
     // Apply rotation
     activeCtx.translate(x, y);
     activeCtx.rotate((stampRotation * Math.PI) / 180);
+    if (mirrorMode) {
+        activeCtx.scale(-1, 1);
+    }
     activeCtx.translate(-x, -y);
     
     if (isTextCharacter) {
@@ -2396,6 +2417,16 @@ function createPattern() {
     }
     
     const activeCtx = getActiveContext();
+    if (mirrorMode) {
+        const mirroredCanvas = document.createElement('canvas');
+        mirroredCanvas.width = patternCanvas.width;
+        mirroredCanvas.height = patternCanvas.height;
+        const mirroredCtx = mirroredCanvas.getContext('2d');
+        mirroredCtx.translate(patternCanvas.width, 0);
+        mirroredCtx.scale(-1, 1);
+        mirroredCtx.drawImage(patternCanvas, 0, 0);
+        return activeCtx.createPattern(mirroredCanvas, 'repeat');
+    }
     return activeCtx.createPattern(patternCanvas, 'repeat');
 }
 
@@ -2960,6 +2991,9 @@ function updateCursor() {
         cursorCtx.save();
         cursorCtx.translate(cursorSize / 2, cursorSize / 2);
         cursorCtx.rotate((stampRotation * Math.PI) / 180);
+        if (mirrorMode) {
+            cursorCtx.scale(-1, 1);
+        }
         cursorCtx.translate(-cursorSize / 2, -cursorSize / 2);
         
         // Set font based on character type - matching stampEmoji() function
