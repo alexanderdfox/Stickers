@@ -2,12 +2,9 @@
 //  ContentView.swift
 //  EmojiPix
 //
-//  Created by Alexander Fox on 11/20/25.
-//
-
-//
-//  ContentView.swift
-//  EmojiPix
+//  Main content view that orchestrates the application layout.
+//  Handles platform-specific UI (macOS/iOS), save functionality, canvas management,
+//  and window layout. Manages save panels and image export (PNG/ICNS).
 //
 
 import SwiftUI
@@ -18,8 +15,13 @@ import AppKit
 import ImageIO
 #elseif canImport(UIKit)
 import UIKit
+import Photos
 #endif
 
+// MARK: - ContentView
+
+/// Main application view
+/// Coordinates header, toolbar, canvas, and bottom toolbar across platforms
 struct ContentView: View {
     @StateObject private var state = DrawingState()
     @State private var showSidebar = true
@@ -473,24 +475,89 @@ struct ContentView: View {
     
     private func saveImage() {
         #if os(iOS)
-        let size = CGSize(width: state.canvasWidth, height: state.canvasHeight)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        let image = renderer.image { context in
-            for layer in state.layers where layer.isVisible {
-                if let cgImage = layer.canvas.createImage() {
-                    context.cgContext.saveGState()
-                    context.cgContext.setAlpha(CGFloat(layer.opacity))
-                    context.cgContext.draw(cgImage, in: CGRect(origin: .zero, size: size))
-                    context.cgContext.restoreGState()
+        // iOS: Save to photo library
+        DispatchQueue.main.async {
+            let size = CGSize(width: self.state.canvasWidth, height: self.state.canvasHeight)
+            guard size.width > 0, size.height > 0 else {
+                self.showIOSSaveError("Invalid canvas size")
+                return
+            }
+            
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let image = renderer.image { context in
+                for layer in self.state.layers where layer.isVisible {
+                    if let cgImage = layer.canvas.createImage() {
+                        context.cgContext.saveGState()
+                        context.cgContext.setAlpha(CGFloat(layer.opacity))
+                        context.cgContext.draw(cgImage, in: CGRect(origin: .zero, size: size))
+                        context.cgContext.restoreGState()
+                    }
+                }
+            }
+            
+            // Check photo library permission first
+            PHPhotoLibrary.requestAuthorization { status in
+                if status == .authorized || status == .limited {
+                    // Create a helper to receive the Objective-C selector callback
+                    let helper = IOSImageSaveHelper { error in
+                        // Clear the strong reference after callback
+                        ContentView.imageSaveHelper = nil
+                        if let error = error {
+                            self.showIOSSaveError("Failed to save: \(error.localizedDescription)")
+                        } else {
+                            HapticFeedback.success()
+                        }
+                    }
+                    // Retain helper until callback fires
+                    ContentView.imageSaveHelper = helper
+                    UIImageWriteToSavedPhotosAlbum(image, helper, #selector(IOSImageSaveHelper.image(_:didFinishSavingWithError:contextInfo:)), nil)
+                } else {
+                    DispatchQueue.main.async {
+                        self.showIOSSaveError("Photo library access denied. Please enable access in Settings.")
+                    }
                 }
             }
         }
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         #elseif os(macOS)
-        guard let combinedImage = renderCombinedMacImage() else { return }
-        presentSavePanel(for: combinedImage)
+        // macOS: Present save panel
+        DispatchQueue.main.async {
+            guard let combinedImage = self.renderCombinedMacImage() else {
+                self.showSaveError("Failed to render image")
+                return
+            }
+            self.presentSavePanel(for: combinedImage)
+        }
         #endif
     }
+    
+    #if os(iOS)
+    // Helper class to bridge Objective-C callback for UIImageWriteToSavedPhotosAlbum
+    private class IOSImageSaveHelper: NSObject {
+        let onResult: (Error?) -> Void
+        init(onResult: @escaping (Error?) -> Void) {
+            self.onResult = onResult
+        }
+        @objc func image(_ image: UIImage, didFinishSavingWithError error: Error?, contextInfo: UnsafeRawPointer) {
+            onResult(error)
+        }
+    }
+
+    // Keep a strong reference during save to ensure the helper lives until callback fires
+    private static var imageSaveHelper: IOSImageSaveHelper?
+    
+    private func showIOSSaveError(_ message: String) {
+        DispatchQueue.main.async {
+            let alert = UIAlertController(title: "Save Failed", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            
+            // Find the root view controller to present the alert
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootViewController = windowScene.windows.first?.rootViewController {
+                rootViewController.present(alert, animated: true)
+            }
+        }
+    }
+    #endif
 #if os(macOS)
     private func renderCombinedMacImage() -> NSImage? {
         let size = NSSize(width: state.canvasWidth, height: state.canvasHeight)
@@ -525,25 +592,97 @@ struct ContentView: View {
     }
     
     private func presentSavePanel(for image: NSImage) {
+        // NSSavePanel must be created and presented on the main thread
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.presentSavePanel(for: image)
+            }
+            return
+        }
+        
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.png, .icns]
         savePanel.canCreateDirectories = true
         savePanel.allowsOtherFileTypes = false
         savePanel.nameFieldStringValue = defaultFileName()
         
+        // begin completion handler is already called on main thread, but ensure our handling is too
         savePanel.begin { response in
-            guard response == .OK, let url = savePanel.url else { return }
+            self.handleSavePanelResponse(response, savePanel: savePanel, image: image)
+        }
+    }
+    
+    private func handleSavePanelResponse(_ response: NSApplication.ModalResponse, savePanel: NSSavePanel, image: NSImage) {
+        guard response == .OK else { return }
+        
+        guard let url = savePanel.url else {
+            showSaveError("Failed to get save location")
+            return
+        }
+        
+        // Save panel completion is already on main thread, but file operations can be on background
+        DispatchQueue.global(qos: .userInitiated).async {
             // Ensure extension matches selection
             let lowerExt = url.pathExtension.lowercased()
             var finalURL = url
+            
             if lowerExt.isEmpty {
                 finalURL = url.appendingPathExtension("png")
             }
+            
             do {
-                try save(image: image, to: finalURL)
+                try self.save(image: image, to: finalURL)
+                // Show success feedback on main thread
+                DispatchQueue.main.async {
+                    self.showSaveSuccess(at: finalURL)
+                }
             } catch {
                 NSLog("EmojiPix save failed: \(error.localizedDescription)")
+                // Show error on main thread
+                DispatchQueue.main.async {
+                    self.showSaveError(error.localizedDescription)
+                }
             }
+        }
+    }
+    
+    private func showSaveError(_ message: String) {
+        // Ensure NSAlert is shown on main thread
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.showSaveError(message)
+            }
+            return
+        }
+        
+        let alert = NSAlert()
+        alert.messageText = "Save Failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    private func showSaveSuccess(at url: URL) {
+        // Ensure NSAlert is shown on main thread
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.showSaveSuccess(at: url)
+            }
+            return
+        }
+        
+        let alert = NSAlert()
+        alert.messageText = "Image Saved"
+        alert.informativeText = "Saved to: \(url.path)"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Show in Finder")
+        
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            let fileURL = URL(fileURLWithPath: url.path)
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
         }
     }
     

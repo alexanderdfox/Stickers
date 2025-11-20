@@ -2,9 +2,13 @@
 //  ToolType.swift
 //  EmojiPix
 //
+//  Defines drawing tools and fill patterns available in the application.
+//  Each tool has an icon, name, and optional keyboard shortcut.
+//
 
 import Foundation
 
+/// Enumeration of all available drawing tools
 enum ToolType: String, CaseIterable {
     case pencil = "pencil"
     case line = "line"
@@ -20,6 +24,7 @@ enum ToolType: String, CaseIterable {
     case selectCircle = "select-circle"
     case selectSquare = "select-square"
     
+    /// Emoji icon representation of the tool
     var icon: String {
         switch self {
         case .pencil: return "✏️"
@@ -38,6 +43,7 @@ enum ToolType: String, CaseIterable {
         }
     }
     
+    /// Display name of the tool
     var name: String {
         switch self {
         case .pencil: return "Pencil"
@@ -56,6 +62,7 @@ enum ToolType: String, CaseIterable {
         }
     }
     
+    /// Keyboard shortcut key for the tool (numbers 1-9, 0, a, [, ])
     var keyboardShortcut: String? {
         switch self {
         case .pencil: return "1"
@@ -75,6 +82,7 @@ enum ToolType: String, CaseIterable {
     }
 }
 
+/// Enumeration of fill patterns available for shapes
 enum FillPattern: String, CaseIterable {
     case solid = "solid"
     case transparent = "transparent"
@@ -84,6 +92,7 @@ enum FillPattern: String, CaseIterable {
     case checkerboard = "checkerboard"
     case dots = "dots"
     
+    /// Display name of the fill pattern
     var name: String {
         switch self {
         case .solid: return "Solid"
@@ -96,4 +105,3 @@ enum FillPattern: String, CaseIterable {
         }
     }
 }
-

@@ -2,6 +2,10 @@
 //  CanvasView.swift
 //  EmojiPix
 //
+//  Main canvas view that handles drawing interactions and rendering.
+//  Manages touch/pointer events, converts coordinates, and performs drawing operations
+//  on layers using Core Graphics. Supports all drawing tools and patterns.
+//
 
 import SwiftUI
 import CoreGraphics
@@ -10,11 +14,16 @@ import CoreGraphics
 import AppKit
 #endif
 
+// MARK: - CanvasView
+
+/// Main drawing canvas view
+/// Handles user input, coordinate conversion, and drawing operations
 struct CanvasView: View {
     @ObservedObject var state: DrawingState
     @State private var lastPoint: CGPoint?
     @State private var isDrawing: Bool = false
     @State private var startPoint: CGPoint?
+    @State private var rainbowHueOffset: Double = 0
     
     private var canvasBackground: Color {
         #if os(macOS)
@@ -80,8 +89,15 @@ struct CanvasView: View {
     }
     
     private func handleTap(at location: CGPoint, in size: CGSize) {
-        guard let layer = state.activeLayer else { return }
+        // Validate size and location
+        guard size.width > 0, size.height > 0,
+              location.x.isFinite, location.y.isFinite,
+              let layer = state.activeLayer else { return }
+        
         let point = convertPoint(location, in: size)
+        
+        // Validate converted point
+        guard point.x.isFinite, point.y.isFinite else { return }
         
         switch state.currentTool {
         case .stamp:
@@ -96,8 +112,15 @@ struct CanvasView: View {
     }
     
     private func handleDraw(at location: CGPoint, in size: CGSize) {
+        // Validate size and location
+        guard size.width > 0, size.height > 0,
+              location.x.isFinite, location.y.isFinite,
+              let layer = state.activeLayer else { return }
+        
         let point = convertPoint(location, in: size)
-        guard let layer = state.activeLayer else { return }
+        
+        // Validate converted point
+        guard point.x.isFinite, point.y.isFinite else { return }
         
         if !isDrawing {
             startPoint = point
@@ -108,8 +131,10 @@ struct CanvasView: View {
         
         switch state.currentTool {
         case .pencil, .eraser, .spray:
-            if let last = lastPoint {
+            if let last = lastPoint, last.x.isFinite, last.y.isFinite {
                 drawPath(from: last, to: point, on: layer)
+                lastPoint = point
+            } else {
                 lastPoint = point
             }
         default:
@@ -152,17 +177,34 @@ struct CanvasView: View {
     }
     
     private func convertPoint(_ point: CGPoint, in size: CGSize) -> CGPoint {
+        // Guard against division by zero and invalid sizes
+        guard size.width > 0, size.height > 0,
+              !point.x.isInfinite, !point.y.isInfinite,
+              !point.x.isNaN, !point.y.isNaN else {
+            return .zero
+        }
+        
         let scaleX = CGFloat(state.canvasWidth) / size.width
         let scaleY = CGFloat(state.canvasHeight) / size.height
-        // Y coordinate is already correct since we flipped the context coordinate system
-        return CGPoint(x: point.x * scaleX, y: point.y * scaleY)
+        
+        var convertedX = point.x * scaleX
+        var convertedY = point.y * scaleY
+        
+        // Clamp to valid canvas bounds
+        convertedX = max(0, min(convertedX, CGFloat(state.canvasWidth)))
+        convertedY = max(0, min(convertedY, CGFloat(state.canvasHeight)))
+        
+        return CGPoint(x: convertedX, y: convertedY)
     }
     
     // Drawing functions
     private func drawPath(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
-        context.setLineWidth(CGFloat(state.brushSize))
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
         context.setLineJoin(.round)
         
@@ -188,7 +230,10 @@ struct CanvasView: View {
     private func drawLine(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
-        context.setLineWidth(CGFloat(state.brushSize))
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
         
         let color = state.rainbowMode ? getRainbowColor() : state.currentColor
@@ -208,6 +253,9 @@ struct CanvasView: View {
     private func drawCircle(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
         let rect = CGRect(
             x: min(start.x, end.x),
             y: min(start.y, end.y),
@@ -215,7 +263,10 @@ struct CanvasView: View {
             height: abs(end.y - start.y)
         )
         
-        context.setLineWidth(CGFloat(state.brushSize))
+        // Skip if rect is too small
+        guard rect.width > 0.5 || rect.height > 0.5 else { return }
+        
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill pattern
         if state.fillPattern != .transparent {
@@ -241,6 +292,9 @@ struct CanvasView: View {
     private func drawRectangle(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
         let rect = CGRect(
             x: min(start.x, end.x),
             y: min(start.y, end.y),
@@ -248,7 +302,10 @@ struct CanvasView: View {
             height: abs(end.y - start.y)
         )
         
-        context.setLineWidth(CGFloat(state.brushSize))
+        // Skip if rect is too small
+        guard rect.width > 0.5 || rect.height > 0.5 else { return }
+        
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill
         if state.fillPattern != .transparent {
@@ -274,7 +331,15 @@ struct CanvasView: View {
     private func drawTriangle(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
         let width = abs(end.x - start.x)
+        let height = abs(end.y - start.y)
+        
+        // Skip if too small
+        guard width > 0.5 || height > 0.5 else { return }
+        
         let centerX = (start.x + end.x) / 2
         let topY = min(start.y, end.y)
         let bottomY = max(start.y, end.y)
@@ -285,7 +350,7 @@ struct CanvasView: View {
         path.addLine(to: CGPoint(x: centerX + width/2, y: bottomY))
         path.closeSubpath()
         
-        context.setLineWidth(CGFloat(state.brushSize))
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill
         if state.fillPattern != .transparent {
@@ -312,15 +377,22 @@ struct CanvasView: View {
     private func drawStar(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
         let width = abs(end.x - start.x)
         let height = abs(end.y - start.y)
+        
+        // Skip if too small
+        guard width > 1 || height > 1 else { return }
+        
         let centerX = (start.x + end.x) / 2
         let centerY = (start.y + end.y) / 2
-        let radius = min(width, height) / 2
+        let radius = max(1, min(width, height) / 2)
         
         let path = createStarPath(center: CGPoint(x: centerX, y: centerY), radius: radius, points: 5)
         
-        context.setLineWidth(CGFloat(state.brushSize))
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill
         if state.fillPattern != .transparent {
@@ -347,9 +419,12 @@ struct CanvasView: View {
     private func drawArc(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        
         let centerX = (start.x + end.x) / 2
         let centerY = (start.y + end.y) / 2
-        let radius = sqrt(pow(end.x - start.x, 2) + pow(end.y - start.y, 2)) / 2
+        let radius = max(1, sqrt(pow(end.x - start.x, 2) + pow(end.y - start.y, 2)) / 2)
         
         let path = CGMutablePath()
         let startAngle = atan2(start.y - centerY, start.x - centerX)
@@ -365,7 +440,7 @@ struct CanvasView: View {
         if let cgColor = color.cgColor {
             context.setStrokeColor(cgColor)
         }
-        context.setLineWidth(CGFloat(state.brushSize))
+        context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.addPath(path)
         context.strokePath()
     }
@@ -395,13 +470,18 @@ struct CanvasView: View {
     private func drawStamp(at point: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // Validate point and emoji
+        guard point.x.isFinite, point.y.isFinite,
+              !state.selectedEmoji.isEmpty else { return }
+        
         // Draw emoji as text
-        let fontSize = CGFloat(state.brushSize * 4)
+        let fontSize = max(8, CGFloat(state.brushSize * 4))
         
         #if canImport(AppKit)
         // Use selected font or system font
         let font: NSFont
-        if let selectedFont = NSFont(name: state.selectedFont, size: fontSize) {
+        if !state.selectedFont.isEmpty,
+           let selectedFont = NSFont(name: state.selectedFont, size: fontSize) {
             font = selectedFont
         } else {
             font = NSFont.systemFont(ofSize: fontSize)
@@ -436,7 +516,8 @@ struct CanvasView: View {
         #elseif canImport(UIKit)
         // Use selected font or system font
         let font: UIFont
-        if let selectedFont = UIFont(name: state.selectedFont, size: fontSize) {
+        if !state.selectedFont.isEmpty,
+           let selectedFont = UIFont(name: state.selectedFont, size: fontSize) {
             font = selectedFont
         } else {
             font = UIFont.systemFont(ofSize: fontSize)
@@ -473,15 +554,33 @@ struct CanvasView: View {
         // This is a simplified version
         guard let context = layer.canvas.context else { return }
         
+        // Validate point
+        guard point.x.isFinite, point.y.isFinite,
+              point.x >= 0, point.y >= 0,
+              point.x <= CGFloat(state.canvasWidth),
+              point.y <= CGFloat(state.canvasHeight) else { return }
+        
         let color = state.rainbowMode ? getRainbowColor() : state.currentColor
         if let cgColor = color.cgColor {
             context.setFillColor(cgColor)
-            context.fill(CGRect(x: point.x - 10, y: point.y - 10, width: 20, height: 20))
+            let fillRect = CGRect(
+                x: max(0, point.x - 10),
+                y: max(0, point.y - 10),
+                width: min(20, CGFloat(state.canvasWidth) - max(0, point.x - 10)),
+                height: min(20, CGFloat(state.canvasHeight) - max(0, point.y - 10))
+            )
+            context.fill(fillRect)
         }
     }
     
     private func addSparkles(at point: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
+        
+        // Validate point
+        guard point.x.isFinite, point.y.isFinite,
+              point.x >= 0, point.y >= 0,
+              point.x <= CGFloat(state.canvasWidth),
+              point.y <= CGFloat(state.canvasHeight) else { return }
         
         #if canImport(AppKit)
         let whiteColor = NSColor.white.cgColor
@@ -494,19 +593,35 @@ struct CanvasView: View {
         for _ in 0..<3 {
             let offsetX = CGFloat.random(in: -10...10)
             let offsetY = CGFloat.random(in: -10...10)
-            let sparklePoint = CGPoint(x: point.x + offsetX, y: point.y + offsetY)
+            var sparklePoint = CGPoint(x: point.x + offsetX, y: point.y + offsetY)
+            
+            // Clamp sparkle point to canvas bounds
+            sparklePoint.x = max(0, min(sparklePoint.x, CGFloat(state.canvasWidth)))
+            sparklePoint.y = max(0, min(sparklePoint.y, CGFloat(state.canvasHeight)))
             
             context.fillEllipse(in: CGRect(x: sparklePoint.x - 1, y: sparklePoint.y - 1, width: 2, height: 2))
         }
     }
     
     private func getRainbowColor() -> Color {
-        let hue = (Date().timeIntervalSince1970 * 100).truncatingRemainder(dividingBy: 360) / 360
+        // Use a more stable rainbow calculation
+        rainbowHueOffset += 0.01
+        if rainbowHueOffset >= 1.0 {
+            rainbowHueOffset = 0
+        }
+        let hue = rainbowHueOffset
         return Color(hue: hue, saturation: 1.0, brightness: 1.0)
     }
     
     // Fill pattern implementation
     private func fillShape(with pattern: FillPattern, in rect: CGRect, using context: CGContext, completion: @escaping (CGPath) -> Void) {
+        // Validate rect
+        guard rect.width > 0, rect.height > 0,
+              rect.width.isFinite, rect.height.isFinite,
+              rect.origin.x.isFinite, rect.origin.y.isFinite else {
+            return
+        }
+        
         context.saveGState()
         
         // First fill background if needed
@@ -651,12 +766,23 @@ struct CanvasView: View {
     }
     
     private func updateSelection(from start: CGPoint, to end: CGPoint) {
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else {
+            state.hasSelection = false
+            return
+        }
+        
         state.selectionBounds = CGRect(
-            x: min(start.x, end.x),
-            y: min(start.y, end.y),
+            x: max(0, min(start.x, end.x)),
+            y: max(0, min(start.y, end.y)),
             width: abs(end.x - start.x),
             height: abs(end.y - start.y)
         )
+        
+        // Clamp to canvas bounds
+        state.selectionBounds.size.width = min(state.selectionBounds.width, CGFloat(state.canvasWidth) - state.selectionBounds.origin.x)
+        state.selectionBounds.size.height = min(state.selectionBounds.height, CGFloat(state.canvasHeight) - state.selectionBounds.origin.y)
+        
         state.hasSelection = state.selectionBounds.width > 5 && state.selectionBounds.height > 5
     }
     
@@ -666,15 +792,23 @@ struct CanvasView: View {
     }
     
     private func drawShapePreview(context: inout GraphicsContext, start: CGPoint, end: CGPoint, in size: CGSize) {
+        // Validate coordinates
+        guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite,
+              size.width > 0, size.height > 0 else { return }
+        
         let startPoint = convertPoint(start, in: size)
         let endPoint = convertPoint(end, in: size)
+        
+        // Validate converted points
+        guard startPoint.x.isFinite, startPoint.y.isFinite,
+              endPoint.x.isFinite, endPoint.y.isFinite else { return }
         
         switch state.currentTool {
         case .line:
             context.stroke(Path { path in
                 path.move(to: startPoint)
                 path.addLine(to: endPoint)
-            }, with: .color(state.currentColor.opacity(0.5)), lineWidth: CGFloat(state.brushSize))
+            }, with: .color(state.currentColor.opacity(0.5)), lineWidth: max(0.5, CGFloat(state.brushSize)))
         default:
             break
         }

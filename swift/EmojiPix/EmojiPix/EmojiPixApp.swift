@@ -2,11 +2,13 @@
 //  EmojiPixApp.swift
 //  EmojiPix
 //
-//  Created by Alexander Fox on 11/20/25.
+//  Main application entry point and app lifecycle management.
+//  Handles window management, menu commands, and settings on macOS.
 //
 
 import SwiftUI
 
+/// Main application structure for EmojiPix drawing application
 @main
 struct EmojiPixApp: App {
     var body: some Scene {
@@ -15,10 +17,13 @@ struct EmojiPixApp: App {
         }
         #if os(macOS)
         .commands {
+            // Remove default "New" menu item since we don't use document model
             CommandGroup(replacing: .newItem) {}
+            
+            // Add custom toolbar command for sidebar toggle
             CommandGroup(after: .toolbar) {
                 Button("Toggle Sidebar") {
-                    // Handle sidebar toggle
+                    // Sidebar toggle is handled in ContentView
                 }
                 .keyboardShortcut("b", modifiers: [.command])
             }
@@ -26,6 +31,7 @@ struct EmojiPixApp: App {
         #endif
         
         #if os(macOS)
+        // macOS Settings window
         Settings {
             SettingsView()
         }
@@ -34,6 +40,7 @@ struct EmojiPixApp: App {
 }
 
 #if os(macOS)
+/// Settings view for macOS preferences
 struct SettingsView: View {
     @StateObject private var preferences = AppPreferences.shared
     
@@ -48,6 +55,7 @@ struct SettingsView: View {
     }
 }
 
+/// General preferences settings view
 struct GeneralSettingsView: View {
     @StateObject private var preferences = AppPreferences.shared
     

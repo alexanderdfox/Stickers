@@ -2,15 +2,29 @@
 //  EmojiData.swift
 //  EmojiPix
 //
+//  Provides emoji data organized by categories for the emoji picker.
+//  Contains comprehensive collections of emojis for use in stamp tool.
+//
 
 import Foundation
 
+// MARK: - EmojiCategory
+
+/// Represents a category of emojis with a name and collection
 struct EmojiCategory {
+    /// Category display name
     let name: String
+    
+    /// Array of emoji strings in this category
     let emojis: [String]
 }
 
+// MARK: - EmojiData
+
+/// Static emoji data organized by categories
+/// Provides access to all available emojis for the stamp tool
 struct EmojiData {
+    /// All emoji categories available in the application
     static let categories: [EmojiCategory] = [
         EmojiCategory(name: "Smileys", emojis: [
             "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇",
@@ -138,4 +152,3 @@ struct EmojiData {
         ])
     ]
 }
-

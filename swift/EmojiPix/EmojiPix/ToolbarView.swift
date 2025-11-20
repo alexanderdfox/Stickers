@@ -2,6 +2,10 @@
 //  ToolbarView.swift
 //  EmojiPix
 //
+//  Toolbar interface for selecting tools, colors, brush settings, effects,
+//  fill patterns, stamp settings, and layer management.
+//  Provides a comprehensive sidebar UI for all drawing controls.
+//
 
 import SwiftUI
 
@@ -11,7 +15,24 @@ import AppKit
 import UIKit
 #endif
 
-// Extension for conditional view modifiers
+// MARK: - KeyboardShortcutModifier
+
+/// View modifier for conditionally applying keyboard shortcuts
+struct KeyboardShortcutModifier: ViewModifier {
+    let keyboardShortcut: String?
+    
+    func body(content: Content) -> some View {
+        if let shortcut = keyboardShortcut, let firstChar = shortcut.first {
+            content.keyboardShortcut(KeyEquivalent(firstChar), modifiers: [])
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - View Extension
+
+/// Extension for conditional view modifiers
 extension View {
     @ViewBuilder func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
         if condition {
@@ -22,6 +43,10 @@ extension View {
     }
 }
 
+// MARK: - ToolbarView
+
+/// Main toolbar view containing all drawing controls
+/// Includes tools, colors, brush size, effects, patterns, stamps, and layers
 struct ToolbarView: View {
     @ObservedObject var state: DrawingState
     
@@ -411,6 +436,14 @@ struct ToolButton: View {
         #endif
     }
     
+    private var toolHelpText: String {
+        if let shortcut = tool.keyboardShortcut {
+            return "\(tool.name) (\(shortcut))"
+        } else {
+            return tool.name
+        }
+    }
+    
     var body: some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -441,13 +474,8 @@ struct ToolButton: View {
         .buttonStyle(.plain)
         .contentShape(Rectangle())
         #if os(macOS)
-        .help("\(tool.name)\(tool.keyboardShortcut != nil ? " (\(tool.keyboardShortcut!))" : "")")
-        .if(tool.keyboardShortcut != nil) { view in
-            view.keyboardShortcut(
-                KeyEquivalent(tool.keyboardShortcut!.first ?? Character("")),
-                modifiers: []
-            )
-        }
+        .help(toolHelpText)
+        .modifier(KeyboardShortcutModifier(keyboardShortcut: tool.keyboardShortcut))
         #endif
     }
 }
