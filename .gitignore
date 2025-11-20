@@ -1,0 +1,25 @@
+# Swift Package/Xcode
+.build/
+DerivedData/
+*.xcworkspace
+*.xcuserstate
+*.xcuserdata/
+.swiftpm/
+
+# macOS artifacts
+.DS_Store
+
+# Logs and caches
+*.log
+*.swp
+*.tmp
+
+# Build outputs
+build/
+out/
+
+# Editor settings
+.vscode/
+.idea/
+
+
