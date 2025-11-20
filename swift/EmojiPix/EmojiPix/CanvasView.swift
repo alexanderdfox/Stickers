@@ -20,6 +20,17 @@ import AppKit
 /// Handles user input, coordinate conversion, and drawing operations
 struct CanvasView: View {
     @ObservedObject var state: DrawingState
+    #if os(iOS)
+    @Binding var importedImage: UIImage?
+    @Binding var importedImagePosition: CGPoint
+    @Binding var isDraggingImage: Bool
+    #elseif os(macOS)
+    @Binding var importedImage: NSImage?
+    @Binding var importedImagePosition: CGPoint
+    @Binding var isDraggingImage: Bool
+    #endif
+    let onPlaceImage: () -> Void
+    
     @State private var lastPoint: CGPoint?
     @State private var isDrawing: Bool = false
     @State private var startPoint: CGPoint?
@@ -44,39 +55,128 @@ struct CanvasView: View {
     var body: some View {
         GeometryReader { geometryProxy in
             let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
+            let geometrySize = geometryProxy.size
             
-            SwiftUI.Canvas { context, size in
-                // Render all visible layers
-                for layer in state.layers where layer.isVisible {
-                    layer.render(context: &context)
+            ZStack {
+                SwiftUI.Canvas { context, size in
+                    // Render all visible layers
+                    for layer in state.layers where layer.isVisible {
+                        layer.render(context: &context)
+                    }
+                    
+                    // Draw selection outline if active
+                    if state.hasSelection {
+                        drawSelection(context: &context, bounds: state.selectionBounds)
+                    }
+                    
+                    // Draw temporary shape preview while drawing
+                    if isDrawing, let start = startPoint, let end = lastPoint {
+                        drawShapePreview(context: &context, start: start, end: end, in: size)
+                    }
                 }
+                .frame(width: canvasSize.width, height: canvasSize.height)
+                .background(canvasBackground)
+                .cornerRadius(8)
+                .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(canvasStroke, lineWidth: 0.5)
+                )
                 
-                // Draw selection outline if active
-                if state.hasSelection {
-                    drawSelection(context: &context, bounds: state.selectionBounds)
+                // Show imported image preview if available
+                #if os(iOS)
+                if let image = importedImage, let cgImage = image.cgImage {
+                    let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+                    let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+                    let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+                    
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: scaledSize.width, height: scaledSize.height)
+                        .position(
+                            x: importedImagePosition.x + scaledSize.width / 2,
+                            y: importedImagePosition.y + scaledSize.height / 2
+                        )
+                        .opacity(0.8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.blue, lineWidth: 2)
+                        )
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    isDraggingImage = true
+                                    // Convert gesture location to canvas coordinates
+                                    let canvasPoint = convertPoint(value.location, in: geometrySize)
+                                    importedImagePosition = CGPoint(
+                                        x: max(0, min(canvasSize.width - scaledSize.width, canvasPoint.x - scaledSize.width / 2)),
+                                        y: max(0, min(canvasSize.height - scaledSize.height, canvasPoint.y - scaledSize.height / 2))
+                                    )
+                                }
+                                .onEnded { _ in
+                                    isDraggingImage = false
+                                }
+                        )
+                        .simultaneousGesture(
+                            TapGesture()
+                                .onEnded {
+                                    onPlaceImage()
+                                }
+                        )
                 }
-                
-                // Draw temporary shape preview while drawing
-                if isDrawing, let start = startPoint, let end = lastPoint {
-                    drawShapePreview(context: &context, start: start, end: end, in: size)
+                #elseif os(macOS)
+                if let image = importedImage, let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                    let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+                    let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+                    let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+                    
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: scaledSize.width, height: scaledSize.height)
+                        .position(
+                            x: importedImagePosition.x + scaledSize.width / 2,
+                            y: importedImagePosition.y + scaledSize.height / 2
+                        )
+                        .opacity(0.8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.blue, lineWidth: 2)
+                        )
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    isDraggingImage = true
+                                    // Convert gesture location to canvas coordinates
+                                    let canvasPoint = convertPoint(value.location, in: geometrySize)
+                                    importedImagePosition = CGPoint(
+                                        x: max(0, min(canvasSize.width - scaledSize.width, canvasPoint.x - scaledSize.width / 2)),
+                                        y: max(0, min(canvasSize.height - scaledSize.height, canvasPoint.y - scaledSize.height / 2))
+                                    )
+                                }
+                                .onEnded { _ in
+                                    isDraggingImage = false
+                                }
+                        )
+                        .simultaneousGesture(
+                            TapGesture()
+                                .onEnded {
+                                    onPlaceImage()
+                                }
+                        )
                 }
+                #endif
             }
-            .frame(width: canvasSize.width, height: canvasSize.height)
-            .background(canvasBackground)
-            .cornerRadius(8)
-            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(canvasStroke, lineWidth: 0.5)
-            )
             .gesture(
-                DragGesture(minimumDistance: 0)
+                // Only handle drawing gestures if not dragging imported image
+                isDraggingImage ? nil : DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        handleDraw(at: value.location, in: geometryProxy.size)
+                        handleDraw(at: value.location, in: geometrySize)
                     }
                     .onEnded { value in
                         if value.translation == .zero {
-                            handleTap(at: value.location, in: geometryProxy.size)
+                            handleTap(at: value.location, in: geometrySize)
                         } else {
                             finishDrawing()
                         }
@@ -550,27 +650,110 @@ struct CanvasView: View {
     }
     
     private func fillAt(point: CGPoint, on layer: DrawingLayer) {
-        // Flood fill implementation would go here
-        // This is a simplified version
-        guard let context = layer.canvas.context else { return }
+        guard let context = layer.canvas.context,
+              let cgImage = layer.canvas.createImage() else { return }
         
         // Validate point
-        guard point.x.isFinite, point.y.isFinite,
-              point.x >= 0, point.y >= 0,
-              point.x <= CGFloat(state.canvasWidth),
-              point.y <= CGFloat(state.canvasHeight) else { return }
+        let x = Int(point.x)
+        let y = Int(point.y)
+        guard x >= 0, y >= 0, x < state.canvasWidth, y < state.canvasHeight else { return }
         
-        let color = state.rainbowMode ? getRainbowColor() : state.currentColor
-        if let cgColor = color.cgColor {
-            context.setFillColor(cgColor)
-            let fillRect = CGRect(
-                x: max(0, point.x - 10),
-                y: max(0, point.y - 10),
-                width: min(20, CGFloat(state.canvasWidth) - max(0, point.x - 10)),
-                height: min(20, CGFloat(state.canvasHeight) - max(0, point.y - 10))
-            )
-            context.fill(fillRect)
+        // Get pixel data from the image
+        let width = cgImage.width
+        let height = cgImage.height
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bytesPerPixel = 4
+        let bytesPerRow = bytesPerPixel * width
+        let bitsPerComponent = 8
+        
+        guard let pixelData = calloc(height * width, bytesPerPixel),
+              let context2 = CGContext(
+                  data: pixelData,
+                  width: width,
+                  height: height,
+                  bitsPerComponent: bitsPerComponent,
+                  bytesPerRow: bytesPerRow,
+                  space: colorSpace,
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else {
+            return
         }
+        
+        // Draw current image to get pixel data
+        context2.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        // Get the target color at the clicked point
+        let pixelIndex = (y * width + x) * bytesPerPixel
+        let pixelPtr = pixelData.assumingMemoryBound(to: UInt8.self)
+        let targetR = pixelPtr[pixelIndex]
+        let targetG = pixelPtr[pixelIndex + 1]
+        let targetB = pixelPtr[pixelIndex + 2]
+        let targetA = pixelPtr[pixelIndex + 3]
+        
+        // Get fill color
+        let fillColor = state.rainbowMode ? getRainbowColor() : state.currentColor
+        guard let fillCGColor = fillColor.cgColor,
+              let components = fillCGColor.components else {
+            free(pixelData)
+            return
+        }
+        
+        let fillR = UInt8(components[0] * 255)
+        let fillG = UInt8(components.count > 1 ? components[1] * 255 : components[0] * 255)
+        let fillB = UInt8(components.count > 2 ? components[2] * 255 : components[0] * 255)
+        let fillA = UInt8(components.count > 3 ? components[3] * 255 : 255)
+        
+        // Check if already filled with the same color
+        if targetR == fillR && targetG == fillG && targetB == fillB && targetA == fillA {
+            free(pixelData)
+            return
+        }
+        
+        // Flood fill using queue-based algorithm
+        var queue: [(Int, Int)] = [(x, y)]
+        var visited = Set<String>()
+        
+        while !queue.isEmpty {
+            let (cx, cy) = queue.removeFirst()
+            let key = "\(cx),\(cy)"
+            
+            if visited.contains(key) { continue }
+            if cx < 0 || cx >= width || cy < 0 || cy >= height { continue }
+            
+            let idx = (cy * width + cx) * bytesPerPixel
+            let r = pixelPtr[idx]
+            let g = pixelPtr[idx + 1]
+            let b = pixelPtr[idx + 2]
+            let a = pixelPtr[idx + 3]
+            
+            // Check if this pixel matches the target color
+            if r != targetR || g != targetG || b != targetB || a != targetA {
+                continue
+            }
+            
+            visited.insert(key)
+            
+            // Fill this pixel
+            pixelPtr[idx] = fillR
+            pixelPtr[idx + 1] = fillG
+            pixelPtr[idx + 2] = fillB
+            pixelPtr[idx + 3] = fillA
+            
+            // Add neighbors to queue
+            queue.append((cx + 1, cy))
+            queue.append((cx - 1, cy))
+            queue.append((cx, cy + 1))
+            queue.append((cx, cy - 1))
+        }
+        
+        // Create new image from modified pixel data
+        if let newCGImage = context2.makeImage() {
+            // Clear and redraw with filled image
+            context.clear(CGRect(x: 0, y: 0, width: state.canvasWidth, height: state.canvasHeight))
+            context.draw(newCGImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        
+        free(pixelData)
     }
     
     private func addSparkles(at point: CGPoint, on layer: DrawingLayer) {
