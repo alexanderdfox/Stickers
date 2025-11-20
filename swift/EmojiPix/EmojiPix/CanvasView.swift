@@ -60,6 +60,8 @@ struct CanvasView: View {
             ZStack {
                 SwiftUI.Canvas { context, size in
                     // Render all visible layers
+                    // Use canvasUpdateCounter to force refresh on every change
+                    let _ = state.canvasUpdateCounter
                     for layer in state.layers where layer.isVisible {
                         layer.render(context: &context)
                     }
@@ -207,6 +209,10 @@ struct CanvasView: View {
             fillAt(point: point, on: layer)
             state.saveState()
         default:
+            // Clear selection if clicking outside with other tools
+            if state.hasSelection {
+                state.clearSelection()
+            }
             break
         }
     }
@@ -325,6 +331,9 @@ struct CanvasView: View {
         if state.sparkleMode {
             addSparkles(at: end, on: layer)
         }
+        
+        // Force canvas update after drawing
+        state.canvasUpdateCounter += 1
     }
     
     private func drawLine(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -348,6 +357,9 @@ struct CanvasView: View {
         if state.sparkleMode {
             addSparkles(at: end, on: layer)
         }
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func drawCircle(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -387,6 +399,9 @@ struct CanvasView: View {
             context.setStrokeColor(cgColor)
             context.strokeEllipse(in: rect)
         }
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func drawRectangle(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -426,6 +441,9 @@ struct CanvasView: View {
             context.setStrokeColor(cgColor)
             context.stroke(rect)
         }
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func drawTriangle(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -472,6 +490,9 @@ struct CanvasView: View {
             context.addPath(path)
             context.strokePath()
         }
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func drawStar(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -514,6 +535,9 @@ struct CanvasView: View {
             context.addPath(path)
             context.strokePath()
         }
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func drawArc(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -543,6 +567,9 @@ struct CanvasView: View {
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.addPath(path)
         context.strokePath()
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func createStarPath(center: CGPoint, radius: CGFloat, points: Int) -> CGPath {
@@ -647,6 +674,9 @@ struct CanvasView: View {
         UIGraphicsPopContext()
         context.restoreGState()
         #endif
+        
+        // Force canvas update
+        state.canvasUpdateCounter += 1
     }
     
     private func fillAt(point: CGPoint, on layer: DrawingLayer) {
@@ -690,28 +720,11 @@ struct CanvasView: View {
         let targetB = pixelPtr[pixelIndex + 2]
         let targetA = pixelPtr[pixelIndex + 3]
         
-        // Get fill color
-        let fillColor = state.rainbowMode ? getRainbowColor() : state.currentColor
-        guard let fillCGColor = fillColor.cgColor,
-              let components = fillCGColor.components else {
-            free(pixelData)
-            return
-        }
-        
-        let fillR = UInt8(components[0] * 255)
-        let fillG = UInt8(components.count > 1 ? components[1] * 255 : components[0] * 255)
-        let fillB = UInt8(components.count > 2 ? components[2] * 255 : components[0] * 255)
-        let fillA = UInt8(components.count > 3 ? components[3] * 255 : 255)
-        
-        // Check if already filled with the same color
-        if targetR == fillR && targetG == fillG && targetB == fillB && targetA == fillA {
-            free(pixelData)
-            return
-        }
-        
-        // Flood fill using queue-based algorithm
+        // Flood fill to find the region to fill
         var queue: [(Int, Int)] = [(x, y)]
         var visited = Set<String>()
+        var minX = x, maxX = x, minY = y, maxY = y
+        var fillRegion: [(Int, Int)] = []
         
         while !queue.isEmpty {
             let (cx, cy) = queue.removeFirst()
@@ -732,12 +745,13 @@ struct CanvasView: View {
             }
             
             visited.insert(key)
+            fillRegion.append((cx, cy))
             
-            // Fill this pixel
-            pixelPtr[idx] = fillR
-            pixelPtr[idx + 1] = fillG
-            pixelPtr[idx + 2] = fillB
-            pixelPtr[idx + 3] = fillA
+            // Update bounding box
+            minX = min(minX, cx)
+            maxX = max(maxX, cx)
+            minY = min(minY, cy)
+            maxY = max(maxY, cy)
             
             // Add neighbors to queue
             queue.append((cx + 1, cy))
@@ -746,11 +760,142 @@ struct CanvasView: View {
             queue.append((cx, cy - 1))
         }
         
+        // If no region found, return
+        guard !fillRegion.isEmpty else {
+            free(pixelData)
+            return
+        }
+        
+        // Handle different fill patterns
+        if state.fillPattern == .solid {
+            // Solid fill - use the original algorithm
+            let fillColor = state.rainbowMode ? getRainbowColor() : state.currentColor
+            guard let fillCGColor = fillColor.cgColor,
+                  let components = fillCGColor.components else {
+                free(pixelData)
+                return
+            }
+            
+            let fillR = UInt8(components[0] * 255)
+            let fillG = UInt8(components.count > 1 ? components[1] * 255 : components[0] * 255)
+            let fillB = UInt8(components.count > 2 ? components[2] * 255 : components[0] * 255)
+            let fillA = UInt8(components.count > 3 ? components[3] * 255 : 255)
+            
+            // Check if already filled with the same color
+            if targetR == fillR && targetG == fillG && targetB == fillB && targetA == fillA {
+                free(pixelData)
+                return
+            }
+            
+            // Fill all pixels in the region
+            for (px, py) in fillRegion {
+                let idx = (py * width + px) * bytesPerPixel
+                pixelPtr[idx] = fillR
+                pixelPtr[idx + 1] = fillG
+                pixelPtr[idx + 2] = fillB
+                pixelPtr[idx + 3] = fillA
+            }
+        } else if state.fillPattern == .transparent {
+            // Transparent fill - clear the region
+            for (px, py) in fillRegion {
+                let idx = (py * width + px) * bytesPerPixel
+                pixelPtr[idx] = 0
+                pixelPtr[idx + 1] = 0
+                pixelPtr[idx + 2] = 0
+                pixelPtr[idx + 3] = 0
+            }
+        } else {
+            // Pattern fill - create pattern in bounding box, then apply to region
+            let bounds = CGRect(
+                x: CGFloat(minX),
+                y: CGFloat(minY),
+                width: CGFloat(maxX - minX + 1),
+                height: CGFloat(maxY - minY + 1)
+            )
+            
+            // Create a temporary context for the pattern
+            let patternWidth = Int(bounds.width)
+            let patternHeight = Int(bounds.height)
+            guard patternWidth > 0, patternHeight > 0,
+                  let patternData = calloc(patternHeight * patternWidth, bytesPerPixel),
+                  let patternContext = CGContext(
+                      data: patternData,
+                      width: patternWidth,
+                      height: patternHeight,
+                      bitsPerComponent: bitsPerComponent,
+                      bytesPerRow: bytesPerPixel * patternWidth,
+                      space: colorSpace,
+                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                  ) else {
+                free(pixelData)
+                return
+            }
+            
+            // Flip pattern context to match coordinate system
+            patternContext.translateBy(x: 0, y: CGFloat(patternHeight))
+            patternContext.scaleBy(x: 1.0, y: -1.0)
+            
+            // Fill background if needed
+            if let bgColor = state.secondaryColor.cgColor {
+                patternContext.setFillColor(bgColor)
+                patternContext.fill(CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height))
+            }
+            
+            // Draw the pattern
+            let patternRect = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height)
+            switch state.fillPattern {
+            case .horizontal:
+                drawHorizontalLinesPattern(in: patternRect, using: patternContext)
+            case .vertical:
+                drawVerticalLinesPattern(in: patternRect, using: patternContext)
+            case .diagonal:
+                drawDiagonalLinesPattern(in: patternRect, using: patternContext)
+            case .checkerboard:
+                drawCheckerboardPattern(in: patternRect, using: patternContext)
+            case .dots:
+                drawDotsPattern(in: patternRect, using: patternContext)
+            default:
+                break
+            }
+            
+            // Get pattern pixel data
+            let patternPtr = patternData.assumingMemoryBound(to: UInt8.self)
+            
+            // Apply pattern pixels to the fill region
+            for (px, py) in fillRegion {
+                // Calculate position relative to pattern bounds
+                let relX = px - minX
+                let relY = py - minY
+                
+                guard relX >= 0, relX < patternWidth, relY >= 0, relY < patternHeight else {
+                    continue
+                }
+                
+                // Get pattern pixel (note: pattern is flipped, so adjust Y)
+                let patternY = patternHeight - 1 - relY
+                let patternIdx = (patternY * patternWidth + relX) * bytesPerPixel
+                
+                // Get main image pixel index
+                let mainIdx = (py * width + px) * bytesPerPixel
+                
+                // Copy pattern pixel to main image
+                pixelPtr[mainIdx] = patternPtr[patternIdx]
+                pixelPtr[mainIdx + 1] = patternPtr[patternIdx + 1]
+                pixelPtr[mainIdx + 2] = patternPtr[patternIdx + 2]
+                pixelPtr[mainIdx + 3] = patternPtr[patternIdx + 3]
+            }
+            
+            free(patternData)
+        }
+        
         // Create new image from modified pixel data
         if let newCGImage = context2.makeImage() {
             // Clear and redraw with filled image
             context.clear(CGRect(x: 0, y: 0, width: state.canvasWidth, height: state.canvasHeight))
             context.draw(newCGImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            
+            // Force canvas update after fill
+            state.canvasUpdateCounter += 1
         }
         
         free(pixelData)

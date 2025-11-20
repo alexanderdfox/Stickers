@@ -17,6 +17,7 @@ class DrawingState: ObservableObject {
     // MARK: - Canvas Properties
     @Published var canvasWidth: Int = 800
     @Published var canvasHeight: Int = 600
+    @Published var canvasUpdateCounter: Int = 0 // Force canvas refresh on changes
     
     // MARK: - Tool Properties
     @Published var currentTool: ToolType = .pencil
@@ -50,6 +51,92 @@ class DrawingState: ObservableObject {
     @Published var hasSelection: Bool = false
     @Published var selectionBounds: CGRect = .zero
     @Published var clipboard: CGImage?
+    
+    // MARK: - Selection Operations
+    
+    /// Copy the selected region to clipboard
+    func copySelection() {
+        guard hasSelection, let layer = activeLayer else { return }
+        
+        let bounds = selectionBounds
+        let x = Int(bounds.origin.x)
+        let y = Int(bounds.origin.y)
+        let width = Int(bounds.width)
+        let height = Int(bounds.height)
+        
+        guard x >= 0, y >= 0, width > 0, height > 0,
+              x + width <= canvasWidth, y + height <= canvasHeight,
+              let sourceImage = layer.canvas.createImage() else {
+            return
+        }
+        
+        // Extract the selected region
+        // Note: CGImage uses bottom-left origin, but our coordinates are top-left
+        // So we need to flip the Y coordinate
+        let flippedY = sourceImage.height - y - height
+        if let croppedImage = sourceImage.cropping(to: CGRect(x: x, y: flippedY, width: width, height: height)) {
+            clipboard = croppedImage
+        }
+    }
+    
+    /// Cut the selected region (copy and clear)
+    func cutSelection() {
+        guard hasSelection, let layer = activeLayer else { return }
+        
+        // Copy first
+        copySelection()
+        
+        // Then clear the selected region
+        let bounds = selectionBounds
+        guard let context = layer.canvas.context else { return }
+        
+        // Account for flipped coordinate system
+        // The context is flipped, so we need to adjust the Y coordinate
+        let flippedY = CGFloat(canvasHeight) - bounds.origin.y - bounds.height
+        let flippedBounds = CGRect(
+            x: bounds.origin.x,
+            y: flippedY,
+            width: bounds.width,
+            height: bounds.height
+        )
+        
+        context.setBlendMode(.clear)
+        context.fill(flippedBounds)
+        context.setBlendMode(.normal)
+        
+        saveState()
+    }
+    
+    /// Paste the clipboard content at the specified point
+    /// - Parameter point: The point to paste at (top-left corner)
+    func pasteSelection(at point: CGPoint) {
+        guard let image = clipboard, let layer = activeLayer,
+              let context = layer.canvas.context else { return }
+        
+        let x = max(0, min(Int(point.x), canvasWidth))
+        let y = max(0, min(Int(point.y), canvasHeight))
+        
+        // Account for flipped coordinate system
+        // The context is flipped, so we need to adjust the Y coordinate
+        let imageWidth = CGFloat(image.width)
+        let imageHeight = CGFloat(image.height)
+        let flippedY = CGFloat(canvasHeight) - CGFloat(y) - imageHeight
+        
+        // Draw the clipboard image at the paste location
+        context.draw(image, in: CGRect(x: CGFloat(x), y: flippedY, width: imageWidth, height: imageHeight))
+        
+        // Update selection to the pasted region (in normal coordinates)
+        selectionBounds = CGRect(x: CGFloat(x), y: CGFloat(y), width: imageWidth, height: imageHeight)
+        hasSelection = true
+        
+        saveState()
+    }
+    
+    /// Clear the current selection
+    func clearSelection() {
+        hasSelection = false
+        selectionBounds = .zero
+    }
     
     // MARK: - History
     private var history: [DrawingSnapshot] = []
@@ -205,6 +292,9 @@ class DrawingState: ObservableObject {
         
         // Ensure index is valid
         historyIndex = min(historyIndex, history.count - 1)
+        
+        // Force canvas refresh
+        canvasUpdateCounter += 1
     }
     
     /// Undo the last action

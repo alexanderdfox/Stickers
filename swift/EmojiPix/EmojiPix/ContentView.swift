@@ -458,6 +458,70 @@ struct ContentView: View {
             Divider()
                 .frame(height: dividerHeight)
             
+            // Cut/Copy/Paste (only show when selection exists)
+            if state.hasSelection {
+                Button(action: {
+                    HapticFeedback.selection()
+                    state.cutSelection()
+                }) {
+                    Image(systemName: "scissors")
+                        .font(.system(size: toolbarButtonSize, weight: .medium))
+                        .frame(width: toolbarButtonFrame, height: toolbarButtonFrame)
+                        .contentShape(Rectangle())
+                }
+                #if os(macOS)
+                .buttonStyle(.borderless)
+                .help("Cut Selection (⌘X)")
+                .keyboardShortcut("x", modifiers: .command)
+                #else
+                .buttonStyle(.plain)
+                #endif
+                
+                Button(action: {
+                    HapticFeedback.selection()
+                    state.copySelection()
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: toolbarButtonSize, weight: .medium))
+                        .frame(width: toolbarButtonFrame, height: toolbarButtonFrame)
+                        .contentShape(Rectangle())
+                }
+                #if os(macOS)
+                .buttonStyle(.borderless)
+                .help("Copy Selection (⌘C)")
+                .keyboardShortcut("c", modifiers: .command)
+                #else
+                .buttonStyle(.plain)
+                #endif
+            }
+            
+            if state.clipboard != nil {
+                Button(action: {
+                    HapticFeedback.selection()
+                    // Paste at center of canvas
+                    let pastePoint = CGPoint(
+                        x: state.canvasWidth / 2,
+                        y: state.canvasHeight / 2
+                    )
+                    state.pasteSelection(at: pastePoint)
+                }) {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: toolbarButtonSize, weight: .medium))
+                        .frame(width: toolbarButtonFrame, height: toolbarButtonFrame)
+                        .contentShape(Rectangle())
+                }
+                #if os(macOS)
+                .buttonStyle(.borderless)
+                .help("Paste (⌘V)")
+                .keyboardShortcut("v", modifiers: .command)
+                #else
+                .buttonStyle(.plain)
+                #endif
+            }
+            
+            Divider()
+                .frame(height: dividerHeight)
+            
             // Clear
             Button(action: clearCanvas) {
                 Image(systemName: "trash")

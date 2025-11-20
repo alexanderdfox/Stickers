@@ -674,39 +674,58 @@ struct LayerItemView: View {
     let action: () -> Void
     
     var body: some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                action()
-            }
-        }) {
-            HStack(spacing: 8) {
-                Toggle("", isOn: $layer.isVisible)
-                    .labelsHidden()
-                #if os(macOS)
-                    .toggleStyle(.checkbox)
-                #else
-                    .toggleStyle(.switch)
-                #endif
-                
-                TextField("Layer Name", text: $layer.name)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12, weight: .medium))
-                    .disabled(!isActive)
-                
-                Spacer()
-                
-                if isActive {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.accentColor)
-                        .font(.system(size: 14))
+        VStack(spacing: 4) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    action()
                 }
+            }) {
+                HStack(spacing: 8) {
+                    Toggle("", isOn: $layer.isVisible)
+                        .labelsHidden()
+                    #if os(macOS)
+                        .toggleStyle(.checkbox)
+                    #else
+                        .toggleStyle(.switch)
+                    #endif
+                    
+                    TextField("Layer Name", text: $layer.name)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .disabled(!isActive)
+                    
+                    Spacer()
+                    
+                    if isActive {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.accentColor)
+                            .font(.system(size: 14))
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
+                .cornerRadius(6)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
-            .cornerRadius(6)
+            .buttonStyle(.plain)
+            
+            // Opacity slider (only show for active layer)
+            if isActive {
+                HStack(spacing: 6) {
+                    Image(systemName: "circle.lefthalf.filled")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                    Slider(value: $layer.opacity, in: 0...1)
+                        .tint(.accentColor)
+                    Text("\(Int(layer.opacity * 100))%")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 35, alignment: .trailing)
+                }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 4)
+            }
         }
-        .buttonStyle(.plain)
     }
 }
 
