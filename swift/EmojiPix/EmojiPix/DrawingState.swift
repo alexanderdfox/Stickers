@@ -190,6 +190,56 @@ class DrawingState: ObservableObject {
         saveState()
     }
     
+    /// Load an image as the background layer
+    /// - Parameters:
+    ///   - cgImage: The CGImage to load
+    func loadImageAsBackground(_ cgImage: CGImage) {
+        // Set canvas size to match image
+        canvasWidth = cgImage.width
+        canvasHeight = cgImage.height
+        
+        // Store existing layers (except background) to preserve them
+        var existingLayers: [DrawingLayer] = []
+        if layers.count > 1 {
+            // Keep all layers except the first (background)
+            existingLayers = Array(layers.dropFirst())
+        }
+        
+        // Create new background layer with image
+        let background = DrawingLayer(name: "Background", width: canvasWidth, height: canvasHeight)
+        
+        // Draw the image onto the background layer
+        if let context = background.canvas.context {
+            // The context is already flipped, so we can draw directly
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+        }
+        
+        // Rebuild layers array with new background and existing layers
+        layers = [background]
+        
+        // Recreate existing layers with new canvas size
+        for oldLayer in existingLayers {
+            let newLayer = DrawingLayer(name: oldLayer.name, width: canvasWidth, height: canvasHeight)
+            newLayer.isVisible = oldLayer.isVisible
+            newLayer.opacity = oldLayer.opacity
+            
+            // Try to copy old content if it fits
+            if let oldImage = oldLayer.canvas.createImage(),
+               let newContext = newLayer.canvas.context {
+                let sourceWidth = min(oldLayer.canvas.width, canvasWidth)
+                let sourceHeight = min(oldLayer.canvas.height, canvasHeight)
+                let drawRect = CGRect(x: 0, y: 0, width: sourceWidth, height: sourceHeight)
+                newContext.draw(oldImage, in: drawRect)
+            }
+            
+            layers.append(newLayer)
+        }
+        
+        activeLayerIndex = 0
+        canvasUpdateCounter += 1
+        saveState()
+    }
+    
     /// Duplicate the active layer with all its content
     func duplicateActiveLayer() {
         guard let layer = activeLayer,

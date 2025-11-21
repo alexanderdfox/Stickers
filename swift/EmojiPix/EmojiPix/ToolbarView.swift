@@ -77,7 +77,10 @@ struct ToolbarView: View {
                         ToolButton(
                             tool: tool,
                             isSelected: state.currentTool == tool,
-                            action: { state.currentTool = tool }
+                            action: {
+                                AppPreferences.shared.playSound(.click)
+                                state.currentTool = tool
+                            }
                         )
                     }
                 }
@@ -87,12 +90,18 @@ struct ToolbarView: View {
                     ToolButton(
                         tool: .selectCircle,
                         isSelected: state.currentTool == .selectCircle,
-                        action: { state.currentTool = .selectCircle }
+                        action: {
+                            AppPreferences.shared.playSound(.click)
+                            state.currentTool = .selectCircle
+                        }
                     )
                     ToolButton(
                         tool: .selectSquare,
                         isSelected: state.currentTool == .selectSquare,
-                        action: { state.currentTool = .selectSquare }
+                        action: {
+                            AppPreferences.shared.playSound(.click)
+                            state.currentTool = .selectSquare
+                        }
                     )
                 }
                 

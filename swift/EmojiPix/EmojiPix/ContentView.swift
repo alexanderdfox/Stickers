@@ -25,6 +25,7 @@ import PhotosUI
 /// Coordinates header, toolbar, canvas, and bottom toolbar across platforms
 struct ContentView: View {
     @StateObject private var state = DrawingState()
+    @EnvironmentObject var appState: AppState
     @State private var showSidebar = true
     @State private var showEmojiPicker = false
     @State private var showHelp = false
@@ -207,11 +208,20 @@ struct ContentView: View {
     }
     
     var body: some View {
-        #if os(macOS)
-        macOSLayout
-        #else
-        iOSLayout
-        #endif
+        Group {
+            #if os(macOS)
+            macOSLayout
+            #else
+            iOSLayout
+            #endif
+        }
+        .onChange(of: appState.imageToLoad) { oldValue, newValue in
+            if let image = newValue {
+                state.loadImageAsBackground(image)
+                // Clear the image after loading
+                appState.imageToLoad = nil
+            }
+        }
     }
     
     #if os(macOS)
@@ -268,12 +278,11 @@ struct ContentView: View {
         ) { result in
             switch result {
             case .success(let urls):
-                if let url = urls.first,
-                   let image = NSImage(contentsOf: url) {
-                    handleImportedImage(image)
+                if let url = urls.first {
+                    loadImageFromURL(url)
                 }
-            case .failure:
-                break
+            case .failure(let error):
+                print("File import error: \(error.localizedDescription)")
             }
         }
         #endif
@@ -421,6 +430,7 @@ struct ContentView: View {
             // Undo/Redo
             Button(action: { 
                 HapticFeedback.selection()
+                AppPreferences.shared.playSound(.click)
                 _ = state.undo() 
             }) {
                 Image(systemName: "arrow.uturn.backward")
@@ -439,6 +449,7 @@ struct ContentView: View {
             
             Button(action: { 
                 HapticFeedback.selection()
+                AppPreferences.shared.playSound(.click)
                 _ = state.redo() 
             }) {
                 Image(systemName: "arrow.uturn.forward")
@@ -462,6 +473,7 @@ struct ContentView: View {
             if state.hasSelection {
                 Button(action: {
                     HapticFeedback.selection()
+                    AppPreferences.shared.playSound(.click)
                     state.cutSelection()
                 }) {
                     Image(systemName: "scissors")
@@ -479,6 +491,7 @@ struct ContentView: View {
                 
                 Button(action: {
                     HapticFeedback.selection()
+                    AppPreferences.shared.playSound(.click)
                     state.copySelection()
                 }) {
                     Image(systemName: "doc.on.doc")
@@ -498,6 +511,7 @@ struct ContentView: View {
             if state.clipboard != nil {
                 Button(action: {
                     HapticFeedback.selection()
+                    AppPreferences.shared.playSound(.click)
                     // Paste at center of canvas
                     let pastePoint = CGPoint(
                         x: state.canvasWidth / 2,
@@ -523,7 +537,10 @@ struct ContentView: View {
                 .frame(height: dividerHeight)
             
             // Clear
-            Button(action: clearCanvas) {
+            Button(action: {
+                AppPreferences.shared.playSound(.clear)
+                clearCanvas()
+            }) {
                 Image(systemName: "trash")
                     .font(.system(size: toolbarButtonSize, weight: .medium))
                     .frame(width: toolbarButtonFrame, height: toolbarButtonFrame)
@@ -592,6 +609,7 @@ struct ContentView: View {
             // Save
             Button(action: {
                 HapticFeedback.medium()
+                AppPreferences.shared.playSound(.save)
                 saveImage()
             }) {
                 Image(systemName: "square.and.arrow.down")
@@ -603,6 +621,29 @@ struct ContentView: View {
             .buttonStyle(.borderless)
             .help("Save Image (⌘S)")
             .keyboardShortcut("s", modifiers: .command)
+            #else
+            .buttonStyle(.plain)
+            #endif
+            
+            Divider()
+                .frame(height: dividerHeight)
+            
+            // New/Start Screen
+            Button(action: {
+                HapticFeedback.selection()
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    appState.showStartScreen = true
+                }
+            }) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: toolbarButtonSize, weight: .medium))
+                    .frame(width: toolbarButtonFrame, height: toolbarButtonFrame)
+                    .contentShape(Rectangle())
+            }
+            #if os(macOS)
+            .buttonStyle(.borderless)
+            .help("New Drawing (⌘N)")
+            .keyboardShortcut("n", modifiers: .command)
             #else
             .buttonStyle(.plain)
             #endif
@@ -826,6 +867,35 @@ struct ContentView: View {
         state.saveState()
     }
     #elseif os(macOS)
+    private func loadImageFromURL(_ url: URL) {
+        // Access security-scoped resource for fileImporter URLs
+        guard url.startAccessingSecurityScopedResource() else {
+            print("Failed to access security-scoped resource: \(url)")
+            return
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        // Try loading as NSImage first (simpler for most cases)
+        if let nsImage = NSImage(contentsOf: url) {
+            handleImportedImage(nsImage)
+            return
+        }
+        
+        // Fallback: Load using CGImageSource for better compatibility
+        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+            print("Failed to load image from URL: \(url)")
+            return
+        }
+        
+        // Convert CGImage to NSImage for display
+        let nsImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        handleImportedImage(nsImage)
+    }
+    
     private func handleImportedImage(_ image: NSImage) {
         // Create a new layer for the imported image
         state.addLayer()
@@ -836,9 +906,25 @@ struct ContentView: View {
         // Store the image and set initial position (centered)
         importedImage = image
         let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
-        if let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
-            let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+        
+        // Get CGImage from NSImage
+        var cgImage: CGImage?
+        if let imageRep = image.representations.first as? NSBitmapImageRep {
+            cgImage = imageRep.cgImage
+        } else {
+            // Fallback: create CGImage from NSImage
+            let imageRect = NSRect(origin: .zero, size: image.size)
+            if let imageRep = image.bestRepresentation(for: imageRect, context: nil, hints: nil) as? NSBitmapImageRep {
+                cgImage = imageRep.cgImage
+            } else {
+                // Last resort: create from bitmap data
+                cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            }
+        }
+        
+        if let img = cgImage {
+            let imageSize = CGSize(width: img.width, height: img.height)
+            let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height) * 0.8 // Scale to 80% to fit nicely
             let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
             importedImagePosition = CGPoint(
                 x: (canvasSize.width - scaledSize.width) / 2,
@@ -851,19 +937,33 @@ struct ContentView: View {
     
     private func placeImportedImage() {
         guard let image = importedImage,
-              let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
               let activeLayer = state.activeLayer,
               let context = activeLayer.canvas.context else {
             return
         }
         
+        // Get CGImage from NSImage
+        var cgImage: CGImage?
+        if let imageRep = image.representations.first as? NSBitmapImageRep {
+            cgImage = imageRep.cgImage
+        } else {
+            cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        }
+        
+        guard let img = cgImage else {
+            print("Failed to get CGImage from NSImage")
+            importedImage = nil
+            return
+        }
+        
         // Draw the imported image at the current position
         let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
-        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
-        let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+        let imageSize = CGSize(width: img.width, height: img.height)
+        let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height) * 0.8
         let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
         
-        context.draw(cgImage, in: CGRect(
+        // The context is already flipped, so we can draw directly
+        context.draw(img, in: CGRect(
             x: importedImagePosition.x,
             y: importedImagePosition.y,
             width: scaledSize.width,
@@ -872,6 +972,7 @@ struct ContentView: View {
         
         // Clear the temporary image
         importedImage = nil
+        state.canvasUpdateCounter += 1
         state.saveState()
     }
     #endif

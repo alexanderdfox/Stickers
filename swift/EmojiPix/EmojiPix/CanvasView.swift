@@ -62,7 +62,10 @@ struct CanvasView: View {
                     // Render all visible layers
                     // Use canvasUpdateCounter to force refresh on every change
                     let _ = state.canvasUpdateCounter
-                    for layer in state.layers where layer.isVisible {
+                    
+                    // Optimize: Only render visible layers
+                    let visibleLayers = state.layers.filter { $0.isVisible }
+                    for layer in visibleLayers {
                         layer.render(context: &context)
                     }
                     
@@ -76,6 +79,7 @@ struct CanvasView: View {
                         drawShapePreview(context: &context, start: start, end: end, in: size)
                     }
                 }
+                .drawingGroup() // Optimize rendering performance
                 .frame(width: canvasSize.width, height: canvasSize.height)
                 .background(canvasBackground)
                 .cornerRadius(8)
@@ -188,6 +192,8 @@ struct CanvasView: View {
         .frame(width: CGFloat(state.canvasWidth), height: CGFloat(state.canvasHeight))
         .scaleEffect(state.canvasZoom)
         .animation(.easeInOut(duration: 0.2), value: state.canvasZoom)
+        // Performance optimization: Use drawingGroup for better rendering
+        .drawingGroup()
     }
     
     private func handleTap(at location: CGPoint, in size: CGSize) {
@@ -204,9 +210,11 @@ struct CanvasView: View {
         switch state.currentTool {
         case .stamp:
             drawStamp(at: point, on: layer)
+            AppPreferences.shared.playSound(.stamp)
             state.saveState()
         case .fill:
             fillAt(point: point, on: layer)
+            AppPreferences.shared.playSound(.fill)
             state.saveState()
         default:
             // Clear selection if clicking outside with other tools
@@ -236,9 +244,40 @@ struct CanvasView: View {
         lastPoint = point
         
         switch state.currentTool {
-        case .pencil, .eraser, .spray:
+        case .pencil:
+            // Throttle updates for smooth performance
             if let last = lastPoint, last.x.isFinite, last.y.isFinite {
+                // Only update counter every few draws for better performance
+                let shouldUpdate = abs(point.x - last.x) > 1 || abs(point.y - last.y) > 1
                 drawPath(from: last, to: point, on: layer)
+                if shouldUpdate {
+                    AppPreferences.shared.playSound(.draw)
+                    state.canvasUpdateCounter += 1
+                }
+                lastPoint = point
+            } else {
+                lastPoint = point
+            }
+        case .spray:
+            if let last = lastPoint, last.x.isFinite, last.y.isFinite {
+                let shouldUpdate = abs(point.x - last.x) > 1 || abs(point.y - last.y) > 1
+                drawPath(from: last, to: point, on: layer)
+                if shouldUpdate {
+                    AppPreferences.shared.playSound(.spray)
+                    state.canvasUpdateCounter += 1
+                }
+                lastPoint = point
+            } else {
+                lastPoint = point
+            }
+        case .eraser:
+            if let last = lastPoint, last.x.isFinite, last.y.isFinite {
+                let shouldUpdate = abs(point.x - last.x) > 1 || abs(point.y - last.y) > 1
+                drawPath(from: last, to: point, on: layer)
+                if shouldUpdate {
+                    AppPreferences.shared.playSound(.eraser)
+                    state.canvasUpdateCounter += 1
+                }
                 lastPoint = point
             } else {
                 lastPoint = point
@@ -260,16 +299,22 @@ struct CanvasView: View {
         switch state.currentTool {
         case .line:
             drawLine(from: start, to: end, on: layer)
+            AppPreferences.shared.playSound(.shape)
         case .circle:
             drawCircle(from: start, to: end, on: layer)
+            AppPreferences.shared.playSound(.shape)
         case .square:
             drawRectangle(from: start, to: end, on: layer)
+            AppPreferences.shared.playSound(.shape)
         case .triangle:
             drawTriangle(from: start, to: end, on: layer)
+            AppPreferences.shared.playSound(.shape)
         case .star:
             drawStar(from: start, to: end, on: layer)
+            AppPreferences.shared.playSound(.shape)
         case .arc:
             drawArc(from: start, to: end, on: layer)
+            AppPreferences.shared.playSound(.shape)
         case .selectCircle, .selectSquare:
             updateSelection(from: start, to: end)
         default:
@@ -332,8 +377,7 @@ struct CanvasView: View {
             addSparkles(at: end, on: layer)
         }
         
-        // Force canvas update after drawing
-        state.canvasUpdateCounter += 1
+        // Note: Update counter is handled in handleDraw for better performance
     }
     
     private func drawLine(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {

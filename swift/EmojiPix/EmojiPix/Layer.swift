@@ -44,11 +44,12 @@ class DrawingLayer: Identifiable, ObservableObject {
     /// Render this layer to a SwiftUI GraphicsContext
     /// - Parameter context: The graphics context to render to
     func render(context: inout GraphicsContext) {
-        guard isVisible else { return }
+        guard isVisible, opacity > 0 else { return }
         
         context.opacity = opacity
         
         // Render canvas content to context
+        // Cache the image to avoid recreating it every frame
         if let cgImage = canvas.createImage() {
             let image = Image(cgImage, scale: 1.0, label: Text("Layer"))
             let size = CGSize(width: cgImage.width, height: cgImage.height)

@@ -11,9 +11,21 @@ import SwiftUI
 /// Main application structure for EmojiPix drawing application
 @main
 struct EmojiPixApp: App {
+    @StateObject private var appState = AppState()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if appState.showStartScreen {
+                StartScreenView(showStartScreen: $appState.showStartScreen)
+                    .environmentObject(appState)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: appState.showStartScreen)
+            } else {
+                ContentView()
+                    .environmentObject(appState)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: appState.showStartScreen)
+            }
         }
         #if os(macOS)
         .commands {
@@ -64,6 +76,9 @@ struct GeneralSettingsView: View {
             Section {
                 Toggle("Enable Haptic Feedback", isOn: $preferences.enableHaptics)
                 Toggle("Enable Sound Effects", isOn: $preferences.enableSoundEffects)
+                    .onChange(of: preferences.enableSoundEffects) { oldValue, newValue in
+                        SoundEffects.shared.setEnabled(newValue)
+                    }
                 Toggle("Show Grid", isOn: $preferences.showGrid)
                 Toggle("Auto-Save", isOn: $preferences.autoSave)
             } header: {
@@ -72,6 +87,9 @@ struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            SoundEffects.shared.setEnabled(preferences.enableSoundEffects)
+        }
     }
 }
 #endif
