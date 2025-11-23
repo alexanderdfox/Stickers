@@ -1,6 +1,6 @@
 //
 //  EmojiData.swift
-//  EmojiPix
+//  Stickers
 //
 //  Provides emoji data organized by categories for the emoji picker.
 //  Contains comprehensive collections of emojis for use in stamp tool.

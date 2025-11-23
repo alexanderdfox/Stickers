@@ -1,4 +1,4 @@
-// EmojiPix - Kid Pix-style drawing app
+// Stickers - Kid Pix-style drawing app
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 
@@ -1359,7 +1359,7 @@ document.getElementById('save-btn').addEventListener('click', () => {
     const link = document.createElement('a');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const scaleSuffix = exportScale !== 1 ? `-${exportScale}x` : '';
-    link.download = `emojipix-${timestamp}${scaleSuffix}.png`;
+    link.download = `stickers-${timestamp}${scaleSuffix}.png`;
     
     // Convert merged canvas to PNG data URL
     link.href = tempCanvas.toDataURL('image/png');
@@ -3240,5 +3240,5 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-console.log('🎨 EmojiPix loaded! Have fun drawing!');
+console.log('🎨 Stickers loaded! Have fun drawing!');
 

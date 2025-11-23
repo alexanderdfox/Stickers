@@ -1,4 +1,4 @@
-# 🎨 EmojiPix
+# 🎨 Stickers
 
 A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patterns, and unleash your creativity! Built with HTML5 Canvas and vanilla JavaScript.
 
@@ -210,7 +210,7 @@ Built-in help modal for easy reference:
   - **400%** - 4× resolution for ultra-high-res output
   - **50%** - Smaller file size for web sharing
 - **Smart Scaling** - Maintains perfect quality when upscaling
-- **Filename Format** - `emojipix-YYYY-MM-DD-HH-MM-SS-2x.png` (includes scale if not 100%)
+- **Filename Format** - `stickers-YYYY-MM-DD-HH-MM-SS-2x.png` (includes scale if not 100%)
 - **Toast Confirmation** - Shows exported size: "💾 Saved 1600×1200px PNG!"
 - **Examples:**
   - 800×600 canvas at 200% = 1600×1200px export
@@ -293,7 +293,7 @@ Perfect mobile experience with comprehensive touch support:
 
 1. Open `index.html` in a modern web browser
 2. Start drawing immediately! No installation or dependencies required
-3. **New to EmojiPix?** Press **F1** or **?** or click the **❓ Help** button for shortcuts and tips
+3. **New to Stickers?** Press **F1** or **?** or click the **❓ Help** button for shortcuts and tips
 4. **Mobile users:** Layer panel starts collapsed - tap the header to expand
 
 ### First Time Users
@@ -505,7 +505,7 @@ This project is inspired by the classic Kid Pix drawing program, featuring:
   - **Visual feedback** - Toast notifications, selection outlines, drawing glow
 - Creative freedom for all ages, on any device!
 
-### What Makes EmojiPix Special
+### What Makes Stickers Special
 - **Cross-platform perfection** - Identical experience on desktop and mobile
 - **Professional tools** - 6 shape tools, all with patterns and effects
 - **Flexible canvas** - 7 preset sizes (512×512 to 1920×1080) with resize preservation

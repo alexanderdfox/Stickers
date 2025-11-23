@@ -1,6 +1,6 @@
 //
 //  SoundEffects.swift
-//  EmojiPix
+//  Stickers
 //
 //  Sound effects system for iOS and macOS using AVAudioEngine.
 //  Provides various sound effects for user interactions.

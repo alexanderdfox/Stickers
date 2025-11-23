@@ -1,6 +1,6 @@
 //
-//  EmojiPixApp.swift
-//  EmojiPix
+//  StickersApp.swift
+//  Stickers
 //
 //  Main application entry point and app lifecycle management.
 //  Handles window management, menu commands, and settings on macOS.
@@ -8,9 +8,9 @@
 
 import SwiftUI
 
-/// Main application structure for EmojiPix drawing application
+/// Main application structure for Stickers drawing application
 @main
-struct EmojiPixApp: App {
+struct StickersApp: App {
     @StateObject private var appState = AppState()
     
     var body: some Scene {

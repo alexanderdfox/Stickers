@@ -33,7 +33,7 @@ print_step() {
 # Default paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_ICNS="$SCRIPT_DIR/icon.icns"
-DEFAULT_APPSET="$SCRIPT_DIR/swift/EmojiPix/EmojiPix/Assets.xcassets/AppIcon.appiconset"
+DEFAULT_APPSET="$SCRIPT_DIR/swift/Stickers/Stickers/Assets.xcassets/AppIcon.appiconset"
 
 # Parse arguments
 INPUT_ICNS="${1:-$DEFAULT_ICNS}"

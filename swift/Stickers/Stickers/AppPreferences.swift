@@ -1,6 +1,6 @@
 //
 //  AppPreferences.swift
-//  EmojiPix
+//  Stickers
 //
 //  Manages application-wide preferences and settings following Apple HIG.
 //  Provides haptic feedback functionality for iOS devices.

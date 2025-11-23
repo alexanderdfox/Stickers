@@ -1,6 +1,6 @@
 //
 //  DrawingState.swift
-//  EmojiPix
+//  Stickers
 //
 //  Manages the application's drawing state, including tools, colors, layers,
 //  undo/redo history, canvas properties, and all drawing-related settings.

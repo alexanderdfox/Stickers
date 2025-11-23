@@ -1,6 +1,6 @@
 //
 //  Layer.swift
-//  EmojiPix
+//  Stickers
 //
 //  Defines the layer system for the drawing canvas.
 //  Layers contain individual drawing canvases that can be composited together.

@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		024260752ECF57D7009487B0 /* EmojiPix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EmojiPix.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		024260752ECF57D7009487B0 /* Stickers.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stickers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		024260772ECF57D7009487B0 /* EmojiPix */ = {
+		024260772ECF57D7009487B0 /* Stickers */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = EmojiPix;
+			path = Stickers;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		0242606C2ECF57D7009487B0 = {
 			isa = PBXGroup;
 			children = (
-				024260772ECF57D7009487B0 /* EmojiPix */,
+				024260772ECF57D7009487B0 /* Stickers */,
 				024260762ECF57D7009487B0 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		024260762ECF57D7009487B0 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				024260752ECF57D7009487B0 /* EmojiPix.app */,
+				024260752ECF57D7009487B0 /* Stickers.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		024260742ECF57D7009487B0 /* EmojiPix */ = {
+		024260742ECF57D7009487B0 /* Stickers */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 024260802ECF57D9009487B0 /* Build configuration list for PBXNativeTarget "EmojiPix" */;
+			buildConfigurationList = 024260802ECF57D9009487B0 /* Build configuration list for PBXNativeTarget "Stickers" */;
 			buildPhases = (
 				024260712ECF57D7009487B0 /* Sources */,
 				024260722ECF57D7009487B0 /* Frameworks */,
@@ -61,13 +61,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				024260772ECF57D7009487B0 /* EmojiPix */,
+				024260772ECF57D7009487B0 /* Stickers */,
 			);
-			name = EmojiPix;
+			name = Stickers;
 			packageProductDependencies = (
 			);
-			productName = EmojiPix;
-			productReference = 024260752ECF57D7009487B0 /* EmojiPix.app */;
+			productName = Stickers;
+			productReference = 024260752ECF57D7009487B0 /* Stickers.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 024260702ECF57D7009487B0 /* Build configuration list for PBXProject "EmojiPix" */;
+			buildConfigurationList = 024260702ECF57D7009487B0 /* Build configuration list for PBXProject "Stickers" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				024260742ECF57D7009487B0 /* EmojiPix */,
+				024260742ECF57D7009487B0 /* Stickers */,
 			);
 		};
 /* End PBXProject section */
@@ -283,7 +283,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = foxcraftings.com.EmojiPIx;
+				PRODUCT_BUNDLE_IDENTIFIER = foxcraftings.com.Stickers;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -347,7 +347,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.1;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = foxcraftings.com.EmojiPIx;
+				PRODUCT_BUNDLE_IDENTIFIER = foxcraftings.com.Stickers;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -372,7 +372,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		024260702ECF57D7009487B0 /* Build configuration list for PBXProject "EmojiPix" */ = {
+		024260702ECF57D7009487B0 /* Build configuration list for PBXProject "Stickers" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0242607E2ECF57D9009487B0 /* Debug */,
@@ -381,7 +381,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		024260802ECF57D9009487B0 /* Build configuration list for PBXNativeTarget "EmojiPix" */ = {
+		024260802ECF57D9009487B0 /* Build configuration list for PBXNativeTarget "Stickers" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				024260812ECF57D9009487B0 /* Debug */,

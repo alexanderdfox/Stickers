@@ -1,6 +1,6 @@
 //
 //  StartScreenView.swift
-//  EmojiPix
+//  Stickers
 //
 //  Start screen with New and Open options for the application.
 //
@@ -60,7 +60,7 @@ struct StartScreenView: View {
                         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
                     
                     // Gradient text for title
-                    Text("EmojiPix")
+                    Text("Stickers")
                         .font(.system(size: 56, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(

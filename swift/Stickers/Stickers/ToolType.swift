@@ -1,6 +1,6 @@
 //
 //  ToolType.swift
-//  EmojiPix
+//  Stickers
 //
 //  Defines drawing tools and fill patterns available in the application.
 //  Each tool has an icon, name, and optional keyboard shortcut.

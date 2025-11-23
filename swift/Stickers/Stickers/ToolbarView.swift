@@ -1,6 +1,6 @@
 //
 //  ToolbarView.swift
-//  EmojiPix
+//  Stickers
 //
 //  Toolbar interface for selecting tools, colors, brush settings, effects,
 //  fill patterns, stamp settings, and layer management.

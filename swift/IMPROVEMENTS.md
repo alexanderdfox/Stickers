@@ -1,4 +1,4 @@
-# EmojiPix macOS App - Apple HIG Improvements
+# Stickers macOS App - Apple HIG Improvements
 
 ## ✅ Build Status
 **BUILD SUCCEEDED** - All compilation errors fixed!
@@ -85,7 +85,7 @@ The app is now:
 
 ## 📝 Next Steps (Optional Enhancements)
 
-- Add preferences window (started in EmojiPixApp.swift)
+- Add preferences window (started in StickersApp.swift)
 - Add keyboard shortcut customization
 - Add export format options (PNG, JPEG, PDF)
 - Add grid overlay option

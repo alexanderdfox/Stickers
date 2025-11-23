@@ -1,6 +1,6 @@
 //
 //  CanvasView.swift
-//  EmojiPix
+//  Stickers
 //
 //  Main canvas view that handles drawing interactions and rendering.
 //  Manages touch/pointer events, converts coordinates, and performs drawing operations

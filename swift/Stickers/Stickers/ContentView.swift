@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  EmojiPix
+//  Stickers
 //
 //  Main content view that orchestrates the application layout.
 //  Handles platform-specific UI (macOS/iOS), save functionality, canvas management,
@@ -397,7 +397,7 @@ struct ContentView: View {
             .buttonStyle(.plain)
             #endif
             
-            Text("🎨 EmojiPix")
+            Text("🎨 Stickers")
                 .font(.system(size: headerTitleSize, weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
             
@@ -1284,7 +1284,7 @@ struct ContentView: View {
     private func defaultFileName() -> String {
         let timestamp = Int(Date().timeIntervalSince1970)
         let ext = exportFormat.fileExtension
-        return "emojipix-\(timestamp).\(ext)"
+        return "stickers-\(timestamp).\(ext)"
     }
     
     private func convertExportFormat(at url: URL) {

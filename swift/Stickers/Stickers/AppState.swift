@@ -1,6 +1,6 @@
 //
 //  AppState.swift
-//  EmojiPix
+//  Stickers
 //
 //  Global application state management.
 //
