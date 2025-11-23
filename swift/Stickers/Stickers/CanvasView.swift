@@ -93,84 +93,90 @@ struct CanvasView: View {
                 #if os(iOS)
                 if let image = importedImage, let cgImage = image.cgImage {
                     let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
-                    let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
-                    let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
-                    
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: scaledSize.width, height: scaledSize.height)
-                        .position(
-                            x: importedImagePosition.x + scaledSize.width / 2,
-                            y: importedImagePosition.y + scaledSize.height / 2
-                        )
-                        .opacity(0.8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.blue, lineWidth: 2)
-                        )
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    isDraggingImage = true
-                                    // Convert gesture location to canvas coordinates
-                                    let canvasPoint = convertPoint(value.location, in: geometrySize)
-                                    importedImagePosition = CGPoint(
-                                        x: max(0, min(canvasSize.width - scaledSize.width, canvasPoint.x - scaledSize.width / 2)),
-                                        y: max(0, min(canvasSize.height - scaledSize.height, canvasPoint.y - scaledSize.height / 2))
-                                    )
-                                }
-                                .onEnded { _ in
-                                    isDraggingImage = false
-                                }
-                        )
-                        .simultaneousGesture(
-                            TapGesture()
-                                .onEnded {
-                                    onPlaceImage()
-                                }
-                        )
+                    // Guard against division by zero
+                    if imageSize.width > 0, imageSize.height > 0 {
+                        let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+                        let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+                        
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: scaledSize.width, height: scaledSize.height)
+                            .position(
+                                x: importedImagePosition.x + scaledSize.width / 2,
+                                y: importedImagePosition.y + scaledSize.height / 2
+                            )
+                            .opacity(0.8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.blue, lineWidth: 2)
+                            )
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        isDraggingImage = true
+                                        // Convert gesture location to canvas coordinates
+                                        let canvasPoint = convertPoint(value.location, in: geometrySize)
+                                        importedImagePosition = CGPoint(
+                                            x: max(0, min(canvasSize.width - scaledSize.width, canvasPoint.x - scaledSize.width / 2)),
+                                            y: max(0, min(canvasSize.height - scaledSize.height, canvasPoint.y - scaledSize.height / 2))
+                                        )
+                                    }
+                                    .onEnded { _ in
+                                        isDraggingImage = false
+                                    }
+                            )
+                            .simultaneousGesture(
+                                TapGesture()
+                                    .onEnded {
+                                        onPlaceImage()
+                                    }
+                            )
+                    }
                 }
                 #elseif os(macOS)
                 if let image = importedImage, let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
                     let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
-                    let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
-                    let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
-                    
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: scaledSize.width, height: scaledSize.height)
-                        .position(
-                            x: importedImagePosition.x + scaledSize.width / 2,
-                            y: importedImagePosition.y + scaledSize.height / 2
-                        )
-                        .opacity(0.8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color.blue, lineWidth: 2)
-                        )
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    isDraggingImage = true
-                                    // Convert gesture location to canvas coordinates
-                                    let canvasPoint = convertPoint(value.location, in: geometrySize)
-                                    importedImagePosition = CGPoint(
-                                        x: max(0, min(canvasSize.width - scaledSize.width, canvasPoint.x - scaledSize.width / 2)),
-                                        y: max(0, min(canvasSize.height - scaledSize.height, canvasPoint.y - scaledSize.height / 2))
-                                    )
-                                }
-                                .onEnded { _ in
-                                    isDraggingImage = false
-                                }
-                        )
-                        .simultaneousGesture(
-                            TapGesture()
-                                .onEnded {
-                                    onPlaceImage()
-                                }
-                        )
+                    // Guard against division by zero
+                    if imageSize.width > 0, imageSize.height > 0 {
+                        let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
+                        let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+                        
+                        Image(nsImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: scaledSize.width, height: scaledSize.height)
+                            .position(
+                                x: importedImagePosition.x + scaledSize.width / 2,
+                                y: importedImagePosition.y + scaledSize.height / 2
+                            )
+                            .opacity(0.8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.blue, lineWidth: 2)
+                            )
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        isDraggingImage = true
+                                        // Convert gesture location to canvas coordinates
+                                        let canvasPoint = convertPoint(value.location, in: geometrySize)
+                                        importedImagePosition = CGPoint(
+                                            x: max(0, min(canvasSize.width - scaledSize.width, canvasPoint.x - scaledSize.width / 2)),
+                                            y: max(0, min(canvasSize.height - scaledSize.height, canvasPoint.y - scaledSize.height / 2))
+                                        )
+                                    }
+                                    .onEnded { _ in
+                                        isDraggingImage = false
+                                    }
+                            )
+                            .simultaneousGesture(
+                                TapGesture()
+                                    .onEnded {
+                                        onPlaceImage()
+                                    }
+                            )
+                    }
                 }
                 #endif
             }
@@ -678,7 +684,9 @@ struct CanvasView: View {
             height: textSize.height
         )
         
-        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        // The context is already flipped, so we don't need to flip again
+        // Use flipped: false to avoid double-flipping
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = nsContext
         emojiString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
@@ -754,10 +762,22 @@ struct CanvasView: View {
         }
         
         // Draw current image to get pixel data
+        // Note: cgImage is from a flipped context, so it's already in normal coordinates
         context2.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         
+        // Convert Y coordinate from flipped (top-left origin) to normal (bottom-left origin)
+        // The canvas context is flipped, so point.y is in flipped coordinates (0 at top)
+        // But the image we're reading from is in normal coordinates (0 at bottom)
+        let flippedY = height - 1 - y
+        
         // Get the target color at the clicked point
-        let pixelIndex = (y * width + x) * bytesPerPixel
+        let pixelIndex = (flippedY * width + x) * bytesPerPixel
+        let totalPixels = height * width * bytesPerPixel
+        // Bounds check
+        guard pixelIndex >= 0, pixelIndex + 3 < totalPixels else {
+            free(pixelData)
+            return
+        }
         let pixelPtr = pixelData.assumingMemoryBound(to: UInt8.self)
         let targetR = pixelPtr[pixelIndex]
         let targetG = pixelPtr[pixelIndex + 1]
@@ -765,9 +785,11 @@ struct CanvasView: View {
         let targetA = pixelPtr[pixelIndex + 3]
         
         // Flood fill to find the region to fill
-        var queue: [(Int, Int)] = [(x, y)]
+        // Convert initial point from flipped coordinates to normal coordinates
+        let normalY = height - 1 - y
+        var queue: [(Int, Int)] = [(x, normalY)]
         var visited = Set<String>()
-        var minX = x, maxX = x, minY = y, maxY = y
+        var minX = x, maxX = x, minY = normalY, maxY = normalY
         var fillRegion: [(Int, Int)] = []
         
         while !queue.isEmpty {
@@ -778,6 +800,8 @@ struct CanvasView: View {
             if cx < 0 || cx >= width || cy < 0 || cy >= height { continue }
             
             let idx = (cy * width + cx) * bytesPerPixel
+            // Bounds check
+            guard idx >= 0, idx + 3 < totalPixels else { continue }
             let r = pixelPtr[idx]
             let g = pixelPtr[idx + 1]
             let b = pixelPtr[idx + 2]
@@ -834,6 +858,8 @@ struct CanvasView: View {
             // Fill all pixels in the region
             for (px, py) in fillRegion {
                 let idx = (py * width + px) * bytesPerPixel
+                // Bounds check
+                guard idx >= 0, idx + 3 < totalPixels else { continue }
                 pixelPtr[idx] = fillR
                 pixelPtr[idx + 1] = fillG
                 pixelPtr[idx + 2] = fillB
@@ -843,6 +869,8 @@ struct CanvasView: View {
             // Transparent fill - clear the region
             for (px, py) in fillRegion {
                 let idx = (py * width + px) * bytesPerPixel
+                // Bounds check
+                guard idx >= 0, idx + 3 < totalPixels else { continue }
                 pixelPtr[idx] = 0
                 pixelPtr[idx + 1] = 0
                 pixelPtr[idx + 2] = 0
@@ -918,9 +946,16 @@ struct CanvasView: View {
                 // Get pattern pixel (note: pattern is flipped, so adjust Y)
                 let patternY = patternHeight - 1 - relY
                 let patternIdx = (patternY * patternWidth + relX) * bytesPerPixel
+                let patternTotalPixels = patternHeight * patternWidth * bytesPerPixel
                 
                 // Get main image pixel index
                 let mainIdx = (py * width + px) * bytesPerPixel
+                
+                // Bounds check for both arrays
+                guard patternIdx >= 0, patternIdx + 3 < patternTotalPixels,
+                      mainIdx >= 0, mainIdx + 3 < totalPixels else {
+                    continue
+                }
                 
                 // Copy pattern pixel to main image
                 pixelPtr[mainIdx] = patternPtr[patternIdx]

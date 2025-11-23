@@ -830,6 +830,11 @@ struct ContentView: View {
         let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
         if let cgImage = image.cgImage {
             let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+            // Guard against division by zero
+            guard imageSize.width > 0, imageSize.height > 0 else {
+                importedImagePosition = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+                return
+            }
             let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
             let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
             importedImagePosition = CGPoint(
@@ -852,6 +857,10 @@ struct ContentView: View {
         // Draw the imported image at the current position
         let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
         let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+        // Guard against division by zero
+        guard imageSize.width > 0, imageSize.height > 0 else {
+            return
+        }
         let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height)
         let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
         
@@ -924,6 +933,11 @@ struct ContentView: View {
         
         if let img = cgImage {
             let imageSize = CGSize(width: img.width, height: img.height)
+            // Guard against division by zero
+            guard imageSize.width > 0, imageSize.height > 0 else {
+                importedImagePosition = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+                return
+            }
             let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height) * 0.8 // Scale to 80% to fit nicely
             let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
             importedImagePosition = CGPoint(
@@ -959,6 +973,11 @@ struct ContentView: View {
         // Draw the imported image at the current position
         let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
         let imageSize = CGSize(width: img.width, height: img.height)
+        // Guard against division by zero
+        guard imageSize.width > 0, imageSize.height > 0 else {
+            importedImage = nil
+            return
+        }
         let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height) * 0.8
         let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
         
@@ -1000,6 +1019,7 @@ struct ContentView: View {
         // For iPad
         if let popover = alert.popoverPresentationController {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               !windowScene.windows.isEmpty,
                let rootViewController = windowScene.windows.first?.rootViewController {
                 popover.sourceView = rootViewController.view
                 popover.sourceRect = CGRect(x: rootViewController.view.bounds.midX,
@@ -1009,6 +1029,7 @@ struct ContentView: View {
         }
         
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           !windowScene.windows.isEmpty,
            let rootViewController = windowScene.windows.first?.rootViewController {
             rootViewController.present(alert, animated: true)
         }
@@ -1021,6 +1042,7 @@ struct ContentView: View {
             
             // Find the root view controller to present the alert
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               !windowScene.windows.isEmpty,
                let rootViewController = windowScene.windows.first?.rootViewController {
                 rootViewController.present(alert, animated: true)
             }

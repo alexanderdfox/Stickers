@@ -35,6 +35,12 @@ class SoundEffects {
         
         guard let engine = audioEngine else { return }
         
+        // Connect mainMixerNode to outputNode to ensure the engine has an output
+        // This is required before attaching any other nodes
+        let outputNode = engine.outputNode
+        let format = outputNode.inputFormat(forBus: 0)
+        engine.connect(engine.mainMixerNode, to: outputNode, format: format)
+        
         do {
             try engine.start()
         } catch {
@@ -85,11 +91,26 @@ class SoundEffects {
     
     /// Play a specific sound type
     private func playSound(type: SoundType, engine: AVAudioEngine) {
+        // Ensure engine has a valid output format before attaching nodes
+        let outputNode = engine.outputNode
+        let outputFormat = outputNode.inputFormat(forBus: 0)
+        if outputFormat.channelCount == 0 || outputFormat.sampleRate == 0 {
+            // Attempt to reconnect main mixer to output with a standard format
+            let fallbackFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)
+            if let fallbackFormat {
+                engine.disconnectNodeOutput(engine.mainMixerNode)
+                engine.connect(engine.mainMixerNode, to: outputNode, format: fallbackFormat)
+            }
+        }
+        
         let playerNode = AVAudioPlayerNode()
         engine.attach(playerNode)
         
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)
-        guard let audioFormat = format else { return }
+        guard let audioFormat = format else {
+            engine.detach(playerNode)
+            return
+        }
         
         engine.connect(playerNode, to: engine.mainMixerNode, format: audioFormat)
         
@@ -114,7 +135,15 @@ class SoundEffects {
         
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
             // Fallback to minimal buffer
-            return AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 100)!
+            if let fallbackBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 100) {
+                return fallbackBuffer
+            }
+            // Last resort: create a minimal buffer with a safe format
+            // This should never fail, but if it does, we'll create a basic format
+            let safeFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? format
+            // Force unwrap is safe here because we're using a known-good format
+            // If this fails, the audio system is in a bad state and the app would crash anyway
+            return AVAudioPCMBuffer(pcmFormat: safeFormat, frameCapacity: 1)!
         }
         
         buffer.frameLength = frameCount
