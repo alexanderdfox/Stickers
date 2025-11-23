@@ -25,7 +25,16 @@ class DrawingLayer: Identifiable, ObservableObject {
     let id: UUID
     @Published var name: String
     @Published var isVisible: Bool
-    @Published var opacity: Double
+    @Published var opacity: Double {
+        didSet {
+            // Clamp opacity to valid range [0.0, 1.0]
+            if opacity < 0.0 {
+                opacity = 0.0
+            } else if opacity > 1.0 {
+                opacity = 1.0
+            }
+        }
+    }
     let canvas: Canvas
     
     /// Initialize a new drawing layer
@@ -43,10 +52,13 @@ class DrawingLayer: Identifiable, ObservableObject {
     
     /// Render this layer to a SwiftUI GraphicsContext
     /// - Parameter context: The graphics context to render to
+    /// Note: Opacity is automatically clamped to [0.0, 1.0] range
     func render(context: inout GraphicsContext) {
         guard isVisible, opacity > 0 else { return }
         
-        context.opacity = opacity
+        // Opacity is already clamped by the property observer, but ensure it's valid
+        let clampedOpacity = max(0.0, min(1.0, opacity))
+        context.opacity = clampedOpacity
         
         // Render canvas content to context
         // Cache the image to avoid recreating it every frame
@@ -79,9 +91,11 @@ class Canvas {
     }
     
     /// Create the Core Graphics context with flipped coordinate system
+    /// Note: This method can be called multiple times to recreate the context if needed
     private func createContext() {
-        // Validate dimensions
+        // Dimensions are already clamped in init, but validate again for safety
         guard width > 0, height > 0, width <= 10000, height <= 10000 else {
+            cgContext = nil
             return
         }
         
@@ -99,6 +113,7 @@ class Canvas {
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
+            cgContext = nil
             return
         }
         
@@ -110,6 +125,12 @@ class Canvas {
         cgContext = context
     }
     
+    /// Recreate the context if it was lost or invalid
+    /// This can be called if the context becomes nil unexpectedly
+    func recreateContext() {
+        createContext()
+    }
+    
     /// Get the Core Graphics context for drawing
     var context: CGContext? {
         return cgContext
@@ -118,14 +139,21 @@ class Canvas {
     /// Clear the canvas with a specified color
     /// - Parameter color: The color to fill the canvas with (default: white)
     func clear(color: Color = .white) {
+        // Try to recreate context if it's nil
+        if cgContext == nil {
+            recreateContext()
+        }
+        
         guard let context = cgContext else { return }
         
         #if canImport(AppKit)
-        let cgColor = NSColor(color).cgColor
+        let nsColor = NSColor(color)
+        guard let cgColor = nsColor.cgColor else { return }
         context.setFillColor(cgColor)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         #elseif canImport(UIKit)
-        let cgColor = UIColor(color).cgColor
+        let uiColor = UIColor(color)
+        guard let cgColor = uiColor.cgColor else { return }
         context.setFillColor(cgColor)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         #endif
@@ -134,17 +162,25 @@ class Canvas {
     /// Create a CGImage from the canvas content
     /// - Returns: A CGImage representation of the canvas, or nil if context is invalid
     func createImage() -> CGImage? {
-        return cgContext?.makeImage()
+        guard let context = cgContext else {
+            // Try to recreate context if it's nil
+            recreateContext()
+            return cgContext?.makeImage()
+        }
+        return context.makeImage()
     }
     
     /// Create a copy of this canvas with all its content
     /// - Returns: A new Canvas instance with copied content
+    /// Note: If the source canvas has no valid context, the copy will be empty
     func copy() -> Canvas {
         let newCanvas = Canvas(width: width, height: height)
-        if let image = createImage(),
-           let newContext = newCanvas.context {
-            newContext.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let image = createImage(),
+              let newContext = newCanvas.context else {
+            // If source has no image, return empty canvas (already initialized with white background)
+            return newCanvas
         }
+        newContext.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         return newCanvas
     }
 }

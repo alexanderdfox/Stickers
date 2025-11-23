@@ -194,6 +194,13 @@ class DrawingState: ObservableObject {
     /// - Parameters:
     ///   - cgImage: The CGImage to load
     func loadImageAsBackground(_ cgImage: CGImage) {
+        // Validate image dimensions
+        guard cgImage.width > 0, cgImage.height > 0,
+              cgImage.width <= 10000, cgImage.height <= 10000 else {
+            print("Invalid image dimensions: \(cgImage.width)x\(cgImage.height)")
+            return
+        }
+        
         // Set canvas size to match image
         canvasWidth = cgImage.width
         canvasHeight = cgImage.height
@@ -209,10 +216,13 @@ class DrawingState: ObservableObject {
         let background = DrawingLayer(name: "Background", width: canvasWidth, height: canvasHeight)
         
         // Draw the image onto the background layer
-        if let context = background.canvas.context {
-            // The context is already flipped, so we can draw directly
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+        guard let context = background.canvas.context else {
+            print("Failed to create context for background layer")
+            return
         }
+        
+        // The context is already flipped, so we can draw directly
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
         
         // Rebuild layers array with new background and existing layers
         layers = [background]
@@ -335,7 +345,9 @@ class DrawingState: ObservableObject {
         // Limit history size and update index
         if history.count > maxHistory {
             history.removeFirst()
-            // Don't increment index when removing from front
+            // When removing from front, historyIndex stays the same (we're at the end)
+            // But we need to ensure it's still valid after removal
+            historyIndex = history.count - 1
         } else {
             historyIndex = history.count - 1
         }

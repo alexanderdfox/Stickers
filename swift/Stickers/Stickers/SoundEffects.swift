@@ -21,6 +21,7 @@ class SoundEffects {
     static let shared = SoundEffects()
     
     private var audioEngine: AVAudioEngine?
+    private var audioSessionConfigured = false
     private var isEnabled: Bool = true
     private var lastSoundTime: [String: Date] = [:]
     private let throttleInterval: TimeInterval = 0.05 // Minimum time between same sound type
@@ -31,16 +32,39 @@ class SoundEffects {
     
     /// Setup the audio engine
     private func setupAudioEngine() {
+        #if os(iOS)
+        if !audioSessionConfigured {
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+                try session.setActive(true)
+                audioSessionConfigured = true
+            } catch {
+                print("Failed to configure audio session: \(error)")
+            }
+        }
+        #endif
+        
         audioEngine = AVAudioEngine()
         
         guard let engine = audioEngine else { return }
         
         // Connect mainMixerNode to outputNode to ensure the engine has an output
-        // This is required before attaching any other nodes
         let outputNode = engine.outputNode
-        let format = outputNode.inputFormat(forBus: 0)
+        var format = outputNode.inputFormat(forBus: 0)
+        if format.channelCount == 0 || format.sampleRate == 0 {
+            // Fallback to a sane default if the output format looks invalid
+            if let fallback = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2) {
+                format = fallback
+            }
+        }
+        // Only disconnect if already connected to avoid errors
+        let existingConnections = engine.connections(from: engine.mainMixerNode, to: outputNode)
+        if !existingConnections.isEmpty {
+            engine.disconnectNodeOutput(engine.mainMixerNode)
+        }
         engine.connect(engine.mainMixerNode, to: outputNode, format: format)
-        
+
         do {
             try engine.start()
         } catch {
@@ -70,9 +94,13 @@ class SoundEffects {
             lastSoundTime[type.rawValue] = now
         }
         
-        guard let engine = audioEngine else {
+        var engine: AVAudioEngine
+        if let existing = audioEngine {
+            engine = existing
+        } else {
             setupAudioEngine()
-            return
+            guard let newEngine = audioEngine else { return }
+            engine = newEngine
         }
         
         // Ensure engine is running
@@ -82,6 +110,19 @@ class SoundEffects {
             } catch {
                 print("Failed to start audio engine: \(error)")
                 return
+            }
+        }
+        
+        // Ensure main mixer is connected to output with a valid format
+        let outputNode = engine.outputNode
+        let outFormat = outputNode.inputFormat(forBus: 0)
+        if outFormat.channelCount == 0 || outFormat.sampleRate == 0 {
+            if let fallback = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2) {
+                let existingConnections = engine.connections(from: engine.mainMixerNode, to: outputNode)
+                if !existingConnections.isEmpty {
+                    engine.disconnectNodeOutput(engine.mainMixerNode)
+                }
+                engine.connect(engine.mainMixerNode, to: outputNode, format: fallback)
             }
         }
         
@@ -98,7 +139,10 @@ class SoundEffects {
             // Attempt to reconnect main mixer to output with a standard format
             let fallbackFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)
             if let fallbackFormat {
-                engine.disconnectNodeOutput(engine.mainMixerNode)
+                let existingConnections = engine.connections(from: engine.mainMixerNode, to: outputNode)
+                if !existingConnections.isEmpty {
+                    engine.disconnectNodeOutput(engine.mainMixerNode)
+                }
                 engine.connect(engine.mainMixerNode, to: outputNode, format: fallbackFormat)
             }
         }
@@ -117,10 +161,19 @@ class SoundEffects {
         // Generate audio buffer based on sound type
         let buffer = generateBuffer(for: type, format: audioFormat)
         
-        playerNode.scheduleBuffer(buffer) {
+        playerNode.scheduleBuffer(buffer, at: nil, options: []) {
             // Clean up after playback
             DispatchQueue.main.async {
-                engine.detach(playerNode)
+                playerNode.stop()
+                // Check if node is still connected before disconnecting
+                let connections = engine.connections(from: playerNode, to: engine.mainMixerNode)
+                if !connections.isEmpty {
+                    engine.disconnectNodeOutput(playerNode)
+                }
+                // Check if node is still attached before detaching
+                if engine.attachedNodes.contains(playerNode) {
+                    engine.detach(playerNode)
+                }
             }
         }
         
@@ -136,17 +189,51 @@ class SoundEffects {
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
             // Fallback to minimal buffer
             if let fallbackBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 100) {
+                fallbackBuffer.frameLength = 100
                 return fallbackBuffer
             }
             // Last resort: create a minimal buffer with a safe format
             // This should never fail, but if it does, we'll create a basic format
             let safeFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? format
-            // Force unwrap is safe here because we're using a known-good format
-            // If this fails, the audio system is in a bad state and the app would crash anyway
-            return AVAudioPCMBuffer(pcmFormat: safeFormat, frameCapacity: 1)!
+            guard let minimal = AVAudioPCMBuffer(pcmFormat: safeFormat, frameCapacity: 16) else {
+                // Ultimate fallback: return a zero-filled buffer using the original format
+                // This should never happen, but provides a safe fallback
+                if let ultimateBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1) {
+                    ultimateBuffer.frameLength = 1
+                    if let ch = ultimateBuffer.floatChannelData {
+                        ch[0][0] = 0
+                    }
+                    return ultimateBuffer
+                }
+                // If even that fails, try one more time with a different format
+                // Return a silent buffer to avoid crashing
+                if let lastResort = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1),
+                   let buffer = AVAudioPCMBuffer(pcmFormat: lastResort, frameCapacity: 1) {
+                    buffer.frameLength = 1
+                    if let ch = buffer.floatChannelData {
+                        ch[0][0] = 0
+                    }
+                    return buffer
+                }
+                // Final fallback: return format's buffer (this should always succeed)
+                return AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1) ?? {
+                    // This should never execute, but provides a non-nil return
+                    let finalFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? format
+                    return AVAudioPCMBuffer(pcmFormat: finalFormat, frameCapacity: 1)!
+                }()
+            }
+            minimal.frameLength = 16
+            if let ch = minimal.floatChannelData {
+                for i in 0..<Int(minimal.frameLength) { ch[0][i] = 0 }
+            }
+            return minimal
         }
         
         buffer.frameLength = frameCount
+        
+        if let ch = buffer.floatChannelData {
+            for i in 0..<Int(frameCount) { ch[0][i] = 0 }
+        }
         
         guard let channelData = buffer.floatChannelData else { return buffer }
         
@@ -168,62 +255,73 @@ class SoundEffects {
         case .click:
             // Short click sound
             let phase = 2.0 * Float.pi * frequency * time
-            return amplitude * sin(phase) * exp(-time * 10)
+            let s = amplitude * sin(phase) * exp(-time * 10)
+            return max(-1, min(1, s))
             
         case .draw:
             // Continuous drawing sound with noise
             let phase = 2.0 * Float.pi * frequency * time
             let noise = (Float.random(in: -0.1...0.1))
-            return amplitude * (sin(phase) + noise) * exp(-time * 2)
+            let s = amplitude * (sin(phase) + noise) * exp(-time * 2)
+            return max(-1, min(1, s))
             
         case .spray:
             // Spray sound with rapid variations
             let phase = 2.0 * Float.pi * frequency * time
             let noise = Float.random(in: -0.2...0.2)
-            return amplitude * (sin(phase * 1.5) + noise) * exp(-time * 5)
+            let s = amplitude * (sin(phase * 1.5) + noise) * exp(-time * 5)
+            return max(-1, min(1, s))
             
         case .eraser:
             // Lower frequency eraser sound
             let phase = 2.0 * Float.pi * frequency * time
-            return amplitude * sin(phase) * exp(-time * 3)
+            let s = amplitude * sin(phase) * exp(-time * 3)
+            return max(-1, min(1, s))
             
         case .stamp:
             // Pop sound for stamps
             let phase = 2.0 * Float.pi * frequency * time
-            return amplitude * sin(phase) * (1.0 - time * 2) * exp(-time * 8)
+            let s = amplitude * sin(phase) * (1.0 - time * 2) * exp(-time * 8)
+            return max(-1, min(1, s))
             
         case .fill:
             // Ascending sweep for fill
             let sweepFreq = frequency + (frequency * 2 - frequency) * time
             let phase = 2.0 * Float.pi * sweepFreq * time
-            return amplitude * sin(phase) * exp(-time * 3)
+            let s = amplitude * sin(phase) * exp(-time * 3)
+            return max(-1, min(1, s))
             
         case .shape:
             // Shape completion sound
             let phase = 2.0 * Float.pi * frequency * time
-            return amplitude * sin(phase) * exp(-time * 6)
+            let s = amplitude * sin(phase) * exp(-time * 6)
+            return max(-1, min(1, s))
             
         case .save:
             // Pleasant tone for save
             let phase = 2.0 * Float.pi * frequency * time
-            return amplitude * sin(phase) * exp(-time * 2)
+            let s = amplitude * sin(phase) * exp(-time * 2)
+            return max(-1, min(1, s))
             
         case .clear:
             // Descending sweep for clear
             let sweepFreq = frequency - (frequency * 0.5) * time
             let phase = 2.0 * Float.pi * sweepFreq * time
-            return amplitude * sin(phase) * exp(-time * 4)
+            let s = amplitude * sin(phase) * exp(-time * 4)
+            return max(-1, min(1, s))
             
         case .success:
             // Success chord (two frequencies)
             let phase1 = 2.0 * Float.pi * frequency * time
             let phase2 = 2.0 * Float.pi * frequency * 1.25 * time
-            return amplitude * (sin(phase1) + sin(phase2) * 0.5) * exp(-time * 3)
+            let s = amplitude * (sin(phase1) + sin(phase2) * 0.5) * exp(-time * 3)
+            return max(-1, min(1, s))
             
         case .error:
             // Error sound (lower frequency)
             let phase = 2.0 * Float.pi * frequency * 0.7 * time
-            return amplitude * sin(phase) * exp(-time * 5)
+            let s = amplitude * sin(phase) * exp(-time * 5)
+            return max(-1, min(1, s))
         }
     }
 }

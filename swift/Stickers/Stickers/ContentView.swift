@@ -513,6 +513,7 @@ struct ContentView: View {
                     HapticFeedback.selection()
                     AppPreferences.shared.playSound(.click)
                     // Paste at center of canvas
+                    guard state.canvasWidth > 0, state.canvasHeight > 0 else { return }
                     let pastePoint = CGPoint(
                         x: state.canvasWidth / 2,
                         y: state.canvasHeight / 2
@@ -1224,8 +1225,16 @@ struct ContentView: View {
             CGImageDestinationAddImage(destination, cgImage, nil)
         }
         
-        guard CGImageDestinationFinalize(destination) else { return nil }
+        guard CGImageDestinationFinalize(destination) else {
+            // Clean up temp file on failure
+            try? FileManager.default.removeItem(at: tempURL)
+            return nil
+        }
         
+        // Read the data and clean up temp file
+        defer {
+            try? FileManager.default.removeItem(at: tempURL)
+        }
         return try? Data(contentsOf: tempURL)
     }
     
@@ -1297,6 +1306,11 @@ struct ContentView: View {
         
         let response = alert.runModal()
         if response == .alertSecondButtonReturn {
+            // Ensure the file exists before trying to show it
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                showSaveError("File no longer exists at: \(url.path)")
+                return
+            }
             let fileURL = URL(fileURLWithPath: url.path)
             NSWorkspace.shared.activateFileViewerSelecting([fileURL])
         }
@@ -1338,17 +1352,19 @@ struct ContentView: View {
             return
         }
         
-        // Delete original PNG file if format changed
-        if exportFormat != .png {
-            try? FileManager.default.removeItem(at: url)
-        }
-        
-        // Write final file
+        // Write final file first, then delete original if successful
         do {
             try data.write(to: finalURL)
+            
+            // Only delete original PNG file after successful write
+            if exportFormat != .png {
+                try? FileManager.default.removeItem(at: url)
+            }
+            
             self.showSaveSuccess(at: finalURL)
         } catch {
             self.showSaveError("Failed to save: \(error.localizedDescription)")
+            // Don't delete original file if write failed
         }
     }
 #endif

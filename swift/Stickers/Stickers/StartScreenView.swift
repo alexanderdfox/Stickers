@@ -22,6 +22,8 @@ struct StartScreenView: View {
     @Binding var showStartScreen: Bool
     @EnvironmentObject var appState: AppState
     @State private var showFilePicker = false
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     var body: some View {
         ZStack {
@@ -189,14 +191,27 @@ struct StartScreenView: View {
         #if os(macOS)
         .fileImporter(
             isPresented: $showFilePicker,
-            allowedContentTypes: [.png, .jpeg, .image],
+            allowedContentTypes: [.png, .jpeg, .image, .heic, .heif, .tiff, .tif, .bmp, .gif],
             allowsMultipleSelection: false
         ) { result in
             handleFileSelection(result)
         }
+        .alert("Error Loading Image", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
         #elseif os(iOS)
         .sheet(isPresented: $showFilePicker) {
-            DocumentPickerView(showStartScreen: $showStartScreen, appState: appState)
+            DocumentPickerView(showStartScreen: $showStartScreen, appState: appState, onError: { message in
+                errorMessage = message
+                showError = true
+            })
+        }
+        .alert("Error Loading Image", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
         }
         #endif
     }
@@ -205,18 +220,28 @@ struct StartScreenView: View {
     private func handleFileSelection(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            guard let url = urls.first else { return }
-            // Load the image file
-            loadImage(from: url)
+            guard let url = urls.first else {
+                showErrorMessage("No file selected")
+                return
+            }
+            // Load the image file on main thread
+            DispatchQueue.main.async {
+                loadImage(from: url)
+            }
         case .failure(let error):
-            print("File selection error: \(error.localizedDescription)")
+            showErrorMessage("Failed to select file: \(error.localizedDescription)")
         }
+    }
+    
+    private func showErrorMessage(_ message: String) {
+        errorMessage = message
+        showError = true
     }
     
     private func loadImage(from url: URL) {
         // Access security-scoped resource for fileImporter URLs
         guard url.startAccessingSecurityScopedResource() else {
-            print("Failed to access security-scoped resource: \(url)")
+            showErrorMessage("Failed to access the selected file. Please try again.")
             return
         }
         
@@ -224,14 +249,47 @@ struct StartScreenView: View {
             url.stopAccessingSecurityScopedResource()
         }
         
-        // Load image from file URL
-        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-            print("Failed to load image from URL: \(url)")
+        // Load image from file URL using CGImageSource for better format support
+        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            showErrorMessage("Unable to read image file. The file may be corrupted or in an unsupported format.")
             return
         }
         
-        // Set the image to load in app state
+        // Check image count
+        let imageCount = CGImageSourceGetCount(imageSource)
+        guard imageCount > 0 else {
+            showErrorMessage("The selected file does not contain any images.")
+            return
+        }
+        
+        // Get image properties to check size
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any],
+              let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight as String] as? Int else {
+            showErrorMessage("Unable to read image properties.")
+            return
+        }
+        
+        // Validate image size to prevent memory issues (max 10,000 x 10,000 pixels)
+        let maxDimension = 10000
+        if width > maxDimension || height > maxDimension {
+            showErrorMessage("Image is too large (max \(maxDimension)x\(maxDimension) pixels). Current size: \(width)x\(height)")
+            return
+        }
+        
+        // Validate minimum size
+        if width < 1 || height < 1 {
+            showErrorMessage("Image dimensions are invalid.")
+            return
+        }
+        
+        // Create the CGImage
+        guard let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+            showErrorMessage("Failed to decode image. The file may be corrupted.")
+            return
+        }
+        
+        // Set the image to load in app state (on main thread)
         appState.imageToLoad = cgImage
         
         // Close the start screen
@@ -249,9 +307,10 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     @Binding var showStartScreen: Bool
     @ObservedObject var appState: AppState
     @Environment(\.dismiss) var dismiss
+    let onError: (String) -> Void
     
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image, .png, .jpeg])
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image, .png, .jpeg, .heic, .heif, .tiff, .tif, .bmp, .gif])
         picker.delegate = context.coordinator
         picker.allowsMultipleSelection = false
         return picker
@@ -260,18 +319,20 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(showStartScreen: $showStartScreen, appState: appState, dismiss: dismiss)
+        Coordinator(showStartScreen: $showStartScreen, appState: appState, dismiss: dismiss, onError: onError)
     }
     
     class Coordinator: NSObject, UIDocumentPickerDelegate {
         @Binding var showStartScreen: Bool
         @ObservedObject var appState: AppState
         let dismiss: DismissAction
+        let onError: (String) -> Void
         
-        init(showStartScreen: Binding<Bool>, appState: AppState, dismiss: DismissAction) {
+        init(showStartScreen: Binding<Bool>, appState: AppState, dismiss: DismissAction, onError: @escaping (String) -> Void) {
             self._showStartScreen = showStartScreen
             self.appState = appState
             self.dismiss = dismiss
+            self.onError = onError
         }
         
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
@@ -280,9 +341,17 @@ struct DocumentPickerView: UIViewControllerRepresentable {
                 return
             }
             
-            // Load image from file URL
+            // Load image on main thread
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.loadImage(from: url)
+            }
+        }
+        
+        private func loadImage(from url: URL) {
+            // Access security-scoped resource
             guard url.startAccessingSecurityScopedResource() else {
-                print("Failed to access security scoped resource")
+                onError("Failed to access the selected file. Please try again.")
                 dismiss()
                 return
             }
@@ -291,9 +360,48 @@ struct DocumentPickerView: UIViewControllerRepresentable {
                 url.stopAccessingSecurityScopedResource()
             }
             
-            guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
-                  let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
-                print("Failed to load image from URL: \(url)")
+            // Load image from file URL using CGImageSource for better format support
+            guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+                onError("Unable to read image file. The file may be corrupted or in an unsupported format.")
+                dismiss()
+                return
+            }
+            
+            // Check image count
+            let imageCount = CGImageSourceGetCount(imageSource)
+            guard imageCount > 0 else {
+                onError("The selected file does not contain any images.")
+                dismiss()
+                return
+            }
+            
+            // Get image properties to check size
+            guard let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any],
+                  let width = properties[kCGImagePropertyPixelWidth as String] as? Int,
+                  let height = properties[kCGImagePropertyPixelHeight as String] as? Int else {
+                onError("Unable to read image properties.")
+                dismiss()
+                return
+            }
+            
+            // Validate image size to prevent memory issues (max 10,000 x 10,000 pixels)
+            let maxDimension = 10000
+            if width > maxDimension || height > maxDimension {
+                onError("Image is too large (max \(maxDimension)x\(maxDimension) pixels). Current size: \(width)x\(height)")
+                dismiss()
+                return
+            }
+            
+            // Validate minimum size
+            if width < 1 || height < 1 {
+                onError("Image dimensions are invalid.")
+                dismiss()
+                return
+            }
+            
+            // Create the CGImage
+            guard let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+                onError("Failed to decode image. The file may be corrupted.")
                 dismiss()
                 return
             }

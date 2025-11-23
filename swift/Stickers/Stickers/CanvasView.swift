@@ -35,6 +35,8 @@ struct CanvasView: View {
     @State private var isDrawing: Bool = false
     @State private var startPoint: CGPoint?
     @State private var rainbowHueOffset: Double = 0
+    @State private var enableSnapping: Bool = false
+    @State private var gridSize: CGFloat = 10
     
     private var canvasBackground: Color {
         #if os(macOS)
@@ -187,7 +189,10 @@ struct CanvasView: View {
                         handleDraw(at: value.location, in: geometrySize)
                     }
                     .onEnded { value in
-                        if value.translation == .zero {
+                        let dx = value.location.x - value.startLocation.x
+                        let dy = value.location.y - value.startLocation.y
+                        let distance = sqrt(dx*dx + dy*dy)
+                        if distance < 2 {
                             handleTap(at: value.location, in: geometrySize)
                         } else {
                             finishDrawing()
@@ -199,7 +204,30 @@ struct CanvasView: View {
         .scaleEffect(state.canvasZoom)
         .animation(.easeInOut(duration: 0.2), value: state.canvasZoom)
         // Performance optimization: Use drawingGroup for better rendering
-        .drawingGroup()
+        // Removed redundant drawingGroup() here
+    }
+    
+    private func snapPoint(_ point: CGPoint) -> CGPoint {
+        guard enableSnapping, gridSize > 0 else { return point }
+        let x = (point.x / gridSize).rounded() * gridSize
+        let y = (point.y / gridSize).rounded() * gridSize
+        return CGPoint(x: x, y: y)
+    }
+    
+    private func snapLineEndpoints(start: CGPoint, end: CGPoint) -> (CGPoint, CGPoint) {
+        guard enableSnapping else { return (start, end) }
+        // Snap to grid first
+        let s = snapPoint(start)
+        var e = snapPoint(end)
+        // Angle snapping to 0, 45, 90, 135, etc.
+        let dx = e.x - s.x
+        let dy = e.y - s.y
+        let angle = atan2(dy, dx)
+        let step = CGFloat.pi / 4 // 45 degrees
+        let snappedAngle = (angle / step).rounded() * step
+        let length = max(0.0, hypot(dx, dy))
+        e = CGPoint(x: s.x + cos(snappedAngle) * length, y: s.y + sin(snappedAngle) * length)
+        return (s, e)
     }
     
     private func handleTap(at location: CGPoint, in size: CGSize) {
@@ -244,16 +272,13 @@ struct CanvasView: View {
         
         if !isDrawing {
             startPoint = point
+            lastPoint = point
             isDrawing = true
         }
         
-        lastPoint = point
-        
         switch state.currentTool {
         case .pencil:
-            // Throttle updates for smooth performance
             if let last = lastPoint, last.x.isFinite, last.y.isFinite {
-                // Only update counter every few draws for better performance
                 let shouldUpdate = abs(point.x - last.x) > 1 || abs(point.y - last.y) > 1
                 drawPath(from: last, to: point, on: layer)
                 if shouldUpdate {
@@ -302,24 +327,33 @@ struct CanvasView: View {
             return
         }
         
+        // Apply snapping if enabled for shape tools
+        var s = start
+        var e = end
+        if enableSnapping {
+            let se = snapLineEndpoints(start: start, end: end)
+            s = se.0
+            e = se.1
+        }
+        
         switch state.currentTool {
         case .line:
-            drawLine(from: start, to: end, on: layer)
+            drawLine(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .circle:
-            drawCircle(from: start, to: end, on: layer)
+            drawCircle(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .square:
-            drawRectangle(from: start, to: end, on: layer)
+            drawRectangle(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .triangle:
-            drawTriangle(from: start, to: end, on: layer)
+            drawTriangle(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .star:
-            drawStar(from: start, to: end, on: layer)
+            drawStar(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .arc:
-            drawArc(from: start, to: end, on: layer)
+            drawArc(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .selectCircle, .selectSquare:
             updateSelection(from: start, to: end)
@@ -335,7 +369,7 @@ struct CanvasView: View {
     
     private func convertPoint(_ point: CGPoint, in size: CGSize) -> CGPoint {
         // Guard against division by zero and invalid sizes
-        guard size.width > 0, size.height > 0,
+        guard size.width >= 1, size.height >= 1,
               !point.x.isInfinite, !point.y.isInfinite,
               !point.x.isNaN, !point.y.isNaN else {
             return .zero
@@ -624,6 +658,11 @@ struct CanvasView: View {
     
     private func createStarPath(center: CGPoint, radius: CGFloat, points: Int) -> CGPath {
         let path = CGMutablePath()
+        // Guard against division by zero
+        guard points > 0 else {
+            // Return a simple circle if points is invalid
+            return CGPath(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2), transform: nil)
+        }
         let angle = 4 * CGFloat.pi / CGFloat(points * 2)
         
         var firstPoint = true
@@ -721,6 +760,8 @@ struct CanvasView: View {
             height: textSize.height
         )
         
+        // The context is already flipped, so we can draw directly
+        // UIGraphicsPushContext works correctly with the flipped context
         UIGraphicsPushContext(context)
         emojiString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
         UIGraphicsPopContext()
@@ -834,16 +875,15 @@ struct CanvasView: View {
             return
         }
         
-        // Handle different fill patterns
+        // Perform fill operation - all pixel manipulation is in normal coordinates
+        // The fillRegion coordinates are already in normal (non-flipped) space
         if state.fillPattern == .solid {
-            // Solid fill - use the original algorithm
             let fillColor = state.rainbowMode ? getRainbowColor() : state.currentColor
             guard let fillCGColor = fillColor.cgColor,
                   let components = fillCGColor.components else {
                 free(pixelData)
                 return
             }
-            
             let fillR = UInt8(components[0] * 255)
             let fillG = UInt8(components.count > 1 ? components[1] * 255 : components[0] * 255)
             let fillB = UInt8(components.count > 2 ? components[2] * 255 : components[0] * 255)
@@ -855,10 +895,9 @@ struct CanvasView: View {
                 return
             }
             
-            // Fill all pixels in the region
+            // Fill all pixels in the region (coordinates are in normal space)
             for (px, py) in fillRegion {
                 let idx = (py * width + px) * bytesPerPixel
-                // Bounds check
                 guard idx >= 0, idx + 3 < totalPixels else { continue }
                 pixelPtr[idx] = fillR
                 pixelPtr[idx + 1] = fillG
@@ -869,7 +908,6 @@ struct CanvasView: View {
             // Transparent fill - clear the region
             for (px, py) in fillRegion {
                 let idx = (py * width + px) * bytesPerPixel
-                // Bounds check
                 guard idx >= 0, idx + 3 < totalPixels else { continue }
                 pixelPtr[idx] = 0
                 pixelPtr[idx + 1] = 0
@@ -884,8 +922,6 @@ struct CanvasView: View {
                 width: CGFloat(maxX - minX + 1),
                 height: CGFloat(maxY - minY + 1)
             )
-            
-            // Create a temporary context for the pattern
             let patternWidth = Int(bounds.width)
             let patternHeight = Int(bounds.height)
             guard patternWidth > 0, patternHeight > 0,
@@ -903,7 +939,8 @@ struct CanvasView: View {
                 return
             }
             
-            // Flip pattern context to match coordinate system
+            // Flip pattern context to match the coordinate system we're working in
+            // Since we're working in normal coordinates, we need to flip the pattern context
             patternContext.translateBy(x: 0, y: CGFloat(patternHeight))
             patternContext.scaleBy(x: 1.0, y: -1.0)
             
@@ -932,8 +969,10 @@ struct CanvasView: View {
             
             // Get pattern pixel data
             let patternPtr = patternData.assumingMemoryBound(to: UInt8.self)
+            let patternTotalPixels = patternHeight * patternWidth * bytesPerPixel
             
             // Apply pattern pixels to the fill region
+            // Both pattern and fillRegion are in normal coordinates
             for (px, py) in fillRegion {
                 // Calculate position relative to pattern bounds
                 let relX = px - minX
@@ -943,12 +982,11 @@ struct CanvasView: View {
                     continue
                 }
                 
-                // Get pattern pixel (note: pattern is flipped, so adjust Y)
+                // Get pattern pixel (pattern context is flipped, so adjust Y)
                 let patternY = patternHeight - 1 - relY
                 let patternIdx = (patternY * patternWidth + relX) * bytesPerPixel
-                let patternTotalPixels = patternHeight * patternWidth * bytesPerPixel
                 
-                // Get main image pixel index
+                // Get main image pixel index (in normal coordinates)
                 let mainIdx = (py * width + px) * bytesPerPixel
                 
                 // Bounds check for both arrays
@@ -968,16 +1006,40 @@ struct CanvasView: View {
         }
         
         // Create new image from modified pixel data
-        if let newCGImage = context2.makeImage() {
-            // Clear and redraw with filled image
-            context.clear(CGRect(x: 0, y: 0, width: state.canvasWidth, height: state.canvasHeight))
-            context.draw(newCGImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-            
-            // Force canvas update after fill
-            state.canvasUpdateCounter += 1
+        // The image is in normal coordinates, which is correct
+        guard let newCGImage = context2.makeImage() else {
+            free(pixelData)
+            return
         }
         
-        free(pixelData)
+        // Draw the new image back to the flipped canvas context
+        // The context will automatically handle the coordinate conversion
+        // We must do this on the main thread since context is not thread-safe
+        // Capture necessary values to avoid retaining layer
+        let canvasWidth = self.state.canvasWidth
+        let canvasHeight = self.state.canvasHeight
+        let imageWidth = width
+        let imageHeight = height
+        
+        DispatchQueue.main.async { [weak self, weak layer] in
+            guard let self = self,
+                  let layer = layer,
+                  let canvasContext = layer.canvas.context else {
+                free(pixelData)
+                return
+            }
+            
+            // Clear and redraw with filled image
+            // The context is flipped, so drawing the normal-coordinate image will work correctly
+            canvasContext.clear(CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+            canvasContext.draw(newCGImage, in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
+            
+            // Force canvas update after fill
+            self.state.canvasUpdateCounter += 1
+            self.state.saveState()
+            
+            free(pixelData)
+        }
     }
     
     private func addSparkles(at point: CGPoint, on layer: DrawingLayer) {
@@ -1210,12 +1272,21 @@ struct CanvasView: View {
         guard startPoint.x.isFinite, startPoint.y.isFinite,
               endPoint.x.isFinite, endPoint.y.isFinite else { return }
         
+        let snapped: (CGPoint, CGPoint)
+        if enableSnapping {
+            snapped = snapLineEndpoints(start: startPoint, end: endPoint)
+        } else {
+            snapped = (startPoint, endPoint)
+        }
+        let sp = snapped.0
+        let ep = snapped.1
+        
         switch state.currentTool {
         case .line:
             context.stroke(Path { path in
-                path.move(to: startPoint)
-                path.addLine(to: endPoint)
-            }, with: .color(state.currentColor.opacity(0.5)), lineWidth: max(0.5, CGFloat(state.brushSize)))
+                path.move(to: sp)
+                path.addLine(to: ep)
+            }, with: .color(state.currentColor.opacity(0.5)), lineWidth: max(1.0, CGFloat(state.brushSize)))
         default:
             break
         }
