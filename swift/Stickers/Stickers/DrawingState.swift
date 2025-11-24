@@ -33,7 +33,7 @@ class DrawingState: ObservableObject {
     
     // MARK: - Stamp Properties
     @Published var selectedEmoji: String = "😀"
-    @Published var stampRotation: Double = 0
+    @Published var stampRotation: Double = 180
     @Published var selectedFont: String = "Arial"
     @Published var textCase: TextCase = .upper
     

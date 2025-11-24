@@ -15,6 +15,62 @@ import AppKit
 import UIKit
 #endif
 
+// MARK: - System Fonts Helper
+
+struct SystemFonts {
+    static var availableFonts: [String] {
+        var fonts: [String] = []
+        
+        #if canImport(AppKit)
+        // macOS system fonts
+        if let fontFamilies = NSFontManager.shared.availableFontFamilies as? [String] {
+            fonts = fontFamilies.sorted()
+        }
+        #elseif canImport(UIKit)
+        // iOS system fonts
+        fonts = UIFont.familyNames.sorted()
+        #endif
+        
+        // Filter to common/well-known fonts and add some defaults
+        let commonFonts = [
+            "Arial",
+            "Arial Black",
+            "Arial Narrow",
+            "Avenir",
+            "Avenir Next",
+            "Baskerville",
+            "Chalkboard",
+            "Chalkboard SE",
+            "Comic Sans MS",
+            "Courier",
+            "Courier New",
+            "Georgia",
+            "Helvetica",
+            "Helvetica Neue",
+            "Impact",
+            "Menlo",
+            "Monaco",
+            "Palatino",
+            "Papyrus",
+            "Times New Roman",
+            "Trebuchet MS",
+            "Verdana"
+        ]
+        
+        // Start with common fonts, then add others
+        var result = commonFonts.filter { fonts.contains($0) }
+        
+        // Add other fonts that aren't in the common list
+        for font in fonts {
+            if !result.contains(font) {
+                result.append(font)
+            }
+        }
+        
+        return result
+    }
+}
+
 // MARK: - KeyboardShortcutModifier
 
 /// View modifier for conditionally applying keyboard shortcuts
@@ -279,25 +335,34 @@ struct ToolbarView: View {
                             .font(.system(size: 14))
                             .help("Type any emoji or Unicode character")
                         
-                        // Font selection
-                        #if os(macOS)
+                        // Font selection with dropdown
                         HStack {
                             Text("Font:")
+                                #if os(macOS)
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.secondary)
-                            TextField("Font Name", text: $state.selectedFont)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 12))
-                        }
-                        #else
-                        HStack {
-                            Text("Font:")
+                                #else
                                 .font(.system(size: 13, weight: .medium))
-                            TextField("Font Name", text: $state.selectedFont)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 13))
+                                #endif
+                            Picker("Font", selection: $state.selectedFont) {
+                                ForEach(SystemFonts.availableFonts, id: \.self) { fontName in
+                                    Text(fontName)
+                                        .tag(fontName)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .controlSize(.small)
+                            #if os(macOS)
+                            .frame(maxWidth: 200)
+                            #endif
+                            .onAppear {
+                                // Ensure selected font is in the list, otherwise use first available
+                                let availableFonts = SystemFonts.availableFonts
+                                if !availableFonts.contains(state.selectedFont) {
+                                    state.selectedFont = availableFonts.first ?? "Arial"
+                                }
+                            }
                         }
-                        #endif
                         
                         HStack(spacing: 8) {
                             Text("Rotation:")
