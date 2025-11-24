@@ -85,6 +85,33 @@ struct ToolbarView: View {
                     }
                 }
                 
+                // Grid and Ruler Section
+                ToolSection(title: "📐 Guides") {
+                    Toggle(isOn: $state.showGrid) {
+                        Label("Grid", systemImage: "grid")
+                            .font(.system(size: 14))
+                    }
+                    .toggleStyle(.switch)
+                    
+                    if state.showGrid {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Grid Size: \(Int(state.gridSize))px")
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                            
+                            Slider(value: $state.gridSize, in: 5...100, step: 5)
+                                .frame(height: 20)
+                        }
+                        .padding(.leading, 8)
+                    }
+                    
+                    Toggle(isOn: $state.showRuler) {
+                        Label("Ruler", systemImage: "ruler")
+                            .font(.system(size: 14))
+                    }
+                    .toggleStyle(.switch)
+                }
+                
                 // Selection Tools
                 ToolSection(title: "✂️ Selection") {
                     ToolButton(
@@ -390,13 +417,30 @@ struct ToolbarView: View {
     }
     
     private func parseSize(_ value: String) -> (width: Int, height: Int)? {
-        let components = value.split(separator: "x")
-        guard components.count == 2,
-              let width = Int(components[0]),
-              let height = Int(components[1]) else {
+        // Security: Validate input string length to prevent DoS
+        guard value.count > 0, value.count < 100 else {
             return nil
         }
-        return (width, height)
+        
+        // Security: Sanitize input - only allow digits and 'x'
+        let allowedCharacters = CharacterSet(charactersIn: "0123456789x")
+        guard value.unicodeScalars.allSatisfy({ allowedCharacters.contains($0) }) else {
+            return nil
+        }
+        
+        let components = value.split(separator: "x")
+        guard components.count == 2,
+              components[0].count > 0, components[0].count < 10, // Reasonable length
+              components[1].count > 0, components[1].count < 10, // Reasonable length
+              let width = Int(components[0]),
+              let height = Int(components[1]),
+              width > 0, height > 0,
+              width <= 10000, height <= 10000, // Enforce max dimensions
+              width * height <= 100_000_000, // Prevent memory exhaustion
+              width <= Int.max / 4, height <= Int.max / 4 else { // Prevent integer overflow
+            return nil
+        }
+        return (width: width, height: height)
     }
 }
 
@@ -823,6 +867,112 @@ struct EmojiPickerView: View {
             #endif
             .onAppear {
                 customEmoji = selectedEmoji
+            }
+        }
+    }
+}
+
+// MARK: - Ruler Overlay
+
+struct RulerOverlay: View {
+    let canvasWidth: Int
+    let canvasHeight: Int
+    
+    private let rulerHeight: CGFloat = 20
+    private let tickSpacing: CGFloat = 20
+    private let majorTickSpacing: CGFloat = 100
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top ruler (horizontal)
+            HStack(spacing: 0) {
+                // Corner square
+                ZStack {
+                    Rectangle()
+                        .fill(Color(white: 0.95))
+                        .frame(width: rulerHeight, height: rulerHeight)
+                    Rectangle()
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                        .frame(width: rulerHeight, height: rulerHeight)
+                }
+                
+                // Horizontal ruler
+                GeometryReader { geometry in
+                    ZStack {
+                        Rectangle()
+                            .fill(Color(white: 0.95))
+                            .frame(height: rulerHeight)
+                        
+                        // Draw tick marks
+                        ForEach(0..<Int(geometry.size.width / tickSpacing) + 1, id: \.self) { i in
+                            let x = CGFloat(i) * tickSpacing
+                            let isMajor = i % Int(majorTickSpacing / tickSpacing) == 0
+                            let tickHeight: CGFloat = isMajor ? rulerHeight * 0.6 : rulerHeight * 0.4
+                            
+                            Path { path in
+                                path.move(to: CGPoint(x: x, y: rulerHeight))
+                                path.addLine(to: CGPoint(x: x, y: rulerHeight - tickHeight))
+                            }
+                            .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
+                            
+                            // Draw numbers on major ticks
+                            if isMajor && x < geometry.size.width - 20 {
+                                Text("\(Int(x))")
+                                    .font(.system(size: 8))
+                                    .foregroundColor(.gray)
+                                    .position(x: x + 2, y: rulerHeight * 0.3)
+                            }
+                        }
+                        
+                        Rectangle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                            .frame(height: rulerHeight)
+                    }
+                }
+            }
+            .frame(height: rulerHeight)
+            
+            HStack(spacing: 0) {
+                // Left ruler (vertical)
+                VStack(spacing: 0) {
+                    GeometryReader { geometry in
+                        ZStack {
+                            Rectangle()
+                                .fill(Color(white: 0.95))
+                                .frame(width: rulerHeight)
+                            
+                            // Draw tick marks
+                            ForEach(0..<Int(geometry.size.height / tickSpacing) + 1, id: \.self) { i in
+                                let y = CGFloat(i) * tickSpacing
+                                let isMajor = i % Int(majorTickSpacing / tickSpacing) == 0
+                                let tickWidth: CGFloat = isMajor ? rulerHeight * 0.6 : rulerHeight * 0.4
+                                
+                                Path { path in
+                                    path.move(to: CGPoint(x: 0, y: y))
+                                    path.addLine(to: CGPoint(x: tickWidth, y: y))
+                                }
+                                .stroke(Color.gray.opacity(0.5), lineWidth: 0.5)
+                                
+                                // Draw numbers on major ticks
+                                if isMajor && y < geometry.size.height - 15 {
+                                    Text("\(Int(y))")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.gray)
+                                        .rotationEffect(.degrees(-90))
+                                        .position(x: rulerHeight * 0.3, y: y)
+                                }
+                            }
+                            
+                            Rectangle()
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 0.5)
+                                .frame(width: rulerHeight)
+                        }
+                    }
+                    .frame(width: rulerHeight)
+                }
+                
+                // Canvas area (spacer)
+                Spacer()
             }
         }
     }

@@ -59,11 +59,16 @@ struct CanvasView: View {
             let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
             let geometrySize = geometryProxy.size
             
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 SwiftUI.Canvas { context, size in
                     // Render all visible layers
                     // Use canvasUpdateCounter to force refresh on every change
                     let _ = state.canvasUpdateCounter
+                    
+                    // Draw grid if enabled (draw before layers so it appears behind)
+                    if state.showGrid {
+                        drawGrid(context: &context, size: size)
+                    }
                     
                     // Optimize: Only render visible layers
                     let visibleLayers = state.layers.filter { $0.isVisible }
@@ -90,6 +95,13 @@ struct CanvasView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(canvasStroke, lineWidth: 0.5)
                 )
+                .overlay(alignment: .topLeading) {
+                    // Ruler overlay (positioned around canvas)
+                    if state.showRuler {
+                        RulerOverlay(canvasWidth: state.canvasWidth, canvasHeight: state.canvasHeight)
+                            .offset(x: -20, y: -20)
+                    }
+                }
                 
                 // Show imported image preview if available
                 #if os(iOS)
@@ -368,18 +380,42 @@ struct CanvasView: View {
     }
     
     private func convertPoint(_ point: CGPoint, in size: CGSize) -> CGPoint {
-        // Guard against division by zero and invalid sizes
+        // Security: Guard against division by zero, invalid sizes, and malicious inputs
         guard size.width >= 1, size.height >= 1,
+              size.width.isFinite, size.height.isFinite,
               !point.x.isInfinite, !point.y.isInfinite,
-              !point.x.isNaN, !point.y.isNaN else {
+              !point.x.isNaN, !point.y.isNaN,
+              point.x.isFinite, point.y.isFinite,
+              abs(point.x) < 1_000_000, // Reasonable coordinate limit
+              abs(point.y) < 1_000_000 else { // Reasonable coordinate limit
+            return .zero
+        }
+        
+        // Security: Validate canvas dimensions
+        guard state.canvasWidth > 0, state.canvasHeight > 0,
+              state.canvasWidth <= 10000, state.canvasHeight <= 10000 else {
             return .zero
         }
         
         let scaleX = CGFloat(state.canvasWidth) / size.width
         let scaleY = CGFloat(state.canvasHeight) / size.height
         
+        // Security: Check for overflow in multiplication
+        guard scaleX.isFinite, scaleY.isFinite,
+              !scaleX.isInfinite, !scaleY.isInfinite,
+              !scaleX.isNaN, !scaleY.isNaN else {
+            return .zero
+        }
+        
         var convertedX = point.x * scaleX
         var convertedY = point.y * scaleY
+        
+        // Security: Validate converted coordinates
+        guard convertedX.isFinite, convertedY.isFinite,
+              !convertedX.isInfinite, !convertedY.isInfinite,
+              !convertedX.isNaN, !convertedY.isNaN else {
+            return .zero
+        }
         
         // Clamp to valid canvas bounds
         convertedX = max(0, min(convertedX, CGFloat(state.canvasWidth)))
@@ -395,13 +431,7 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        // SwiftUI: (0,0) is top-left, y increases downward
-        // Core Graphics: (0,0) is bottom-left, y increases upward
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
-        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
-        
+        // The context is flipped (top-left origin), so coordinates from SwiftUI can be used directly
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
         context.setLineJoin(.round)
@@ -422,7 +452,7 @@ struct CanvasView: View {
             if let cgColor = color.cgColor {
                 context.setStrokeColor(cgColor)
             }
-            drawSprayEffect(from: canvasStart, to: canvasEnd, on: layer)
+            drawSprayEffect(from: start, to: end, on: layer)
             return // Early return since spray handles its own drawing
         } else {
             // Normal drawing tools
@@ -433,12 +463,12 @@ struct CanvasView: View {
             }
         }
         
-        context.move(to: canvasStart)
-        context.addLine(to: canvasEnd)
+        context.move(to: start)
+        context.addLine(to: end)
         context.strokePath()
         
         if state.sparkleMode && state.currentTool != .eraser {
-            addSparkles(at: canvasEnd, on: layer)
+            addSparkles(at: end, on: layer)
         }
         
         // Note: Update counter is handled in handleDraw for better performance
@@ -448,7 +478,7 @@ struct CanvasView: View {
     private func drawSprayEffect(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
-        // start and end are already in Core Graphics coordinates (converted in drawPath)
+        // The context is flipped (top-left origin), so coordinates can be used directly
         let color = state.rainbowMode ? getRainbowColor() : state.currentColor
         guard let cgColor = color.cgColor else { return }
         
@@ -488,11 +518,7 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
-        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
-        
+        // The context is flipped (top-left origin), so coordinates can be used directly
         context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
@@ -502,12 +528,12 @@ struct CanvasView: View {
             context.setStrokeColor(cgColor)
         }
         
-        context.move(to: canvasStart)
-        context.addLine(to: canvasEnd)
+        context.move(to: start)
+        context.addLine(to: end)
         context.strokePath()
         
         if state.sparkleMode {
-            addSparkles(at: canvasEnd, on: layer)
+            addSparkles(at: end, on: layer)
         }
         
         // Force canvas update
@@ -563,16 +589,12 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
-        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
-        
+        // The context is flipped (top-left origin), so coordinates can be used directly
         let rect = CGRect(
-            x: min(canvasStart.x, canvasEnd.x),
-            y: min(canvasStart.y, canvasEnd.y),
-            width: abs(canvasEnd.x - canvasStart.x),
-            height: abs(canvasEnd.y - canvasStart.y)
+            x: min(start.x, end.x),
+            y: min(start.y, end.y),
+            width: abs(end.x - start.x),
+            height: abs(end.y - start.y)
         )
         
         // Skip if rect is too small
@@ -611,20 +633,16 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
-        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
-        
-        let width = abs(canvasEnd.x - canvasStart.x)
-        let height = abs(canvasEnd.y - canvasStart.y)
+        // The context is flipped (top-left origin), so coordinates can be used directly
+        let width = abs(end.x - start.x)
+        let height = abs(end.y - start.y)
         
         // Skip if too small
         guard width > 0.5 || height > 0.5 else { return }
         
-        let centerX = (canvasStart.x + canvasEnd.x) / 2
-        let topY = min(canvasStart.y, canvasEnd.y)
-        let bottomY = max(canvasStart.y, canvasEnd.y)
+        let centerX = (start.x + end.x) / 2
+        let topY = min(start.y, end.y)
+        let bottomY = max(start.y, end.y)
         
         let path = CGMutablePath()
         path.move(to: CGPoint(x: centerX, y: topY))
@@ -666,19 +684,15 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
-        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
-        
-        let width = abs(canvasEnd.x - canvasStart.x)
-        let height = abs(canvasEnd.y - canvasStart.y)
+        // The context is flipped (top-left origin), so coordinates can be used directly
+        let width = abs(end.x - start.x)
+        let height = abs(end.y - start.y)
         
         // Skip if too small
         guard width > 1 || height > 1 else { return }
         
-        let centerX = (canvasStart.x + canvasEnd.x) / 2
-        let centerY = (canvasStart.y + canvasEnd.y) / 2
+        let centerX = (start.x + end.x) / 2
+        let centerY = (start.y + end.y) / 2
         let radius = max(1, min(width, height) / 2)
         
         let path = createStarPath(center: CGPoint(x: centerX, y: centerY), radius: radius, points: 5)
@@ -717,17 +731,13 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
-        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
-        
-        let centerX = (canvasStart.x + canvasEnd.x) / 2
-        let centerY = (canvasStart.y + canvasEnd.y) / 2
-        let radius = max(1, sqrt(pow(canvasEnd.x - canvasStart.x, 2) + pow(canvasEnd.y - canvasStart.y, 2)) / 2)
+        // The context is flipped (top-left origin), so coordinates can be used directly
+        let centerX = (start.x + end.x) / 2
+        let centerY = (start.y + end.y) / 2
+        let radius = max(1, sqrt(pow(end.x - start.x, 2) + pow(end.y - start.y, 2)) / 2)
         
         let path = CGMutablePath()
-        let startAngle = atan2(canvasStart.y - centerY, canvasStart.x - centerX)
+        let startAngle = atan2(start.y - centerY, start.x - centerX)
         let endAngle = startAngle + (state.arcSweepAngle * .pi / 180)
         
         path.addArc(center: CGPoint(x: centerX, y: centerY),
@@ -783,10 +793,7 @@ struct CanvasView: View {
         guard point.x.isFinite, point.y.isFinite,
               !state.selectedEmoji.isEmpty else { return }
         
-        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
-        let canvasHeight = CGFloat(state.canvasHeight)
-        let canvasPoint = CGPoint(x: point.x, y: canvasHeight - point.y)
-        
+        // The context is flipped (top-left origin), so coordinates can be used directly
         // Draw emoji as text
         let fontSize = max(8, CGFloat(state.brushSize * 4))
         
@@ -808,36 +815,25 @@ struct CanvasView: View {
         let textSize = emojiString.size()
         
         context.saveGState()
-        context.translateBy(x: canvasPoint.x, y: canvasPoint.y)
+        context.translateBy(x: point.x, y: point.y)
         context.rotate(by: -state.stampRotation * .pi / 180) // Negative for correct rotation direction
-        context.translateBy(x: -canvasPoint.x, y: -canvasPoint.y)
+        context.translateBy(x: -point.x, y: -point.y)
         
         // Draw emoji using NSGraphicsContext for macOS
-        // Context is NOT flipped, so we need to flip the text drawing
+        // The context is flipped, so we don't need to flip again
+        // Use flipped: false to avoid double-flipping
         let rect = CGRect(
-            x: canvasPoint.x - textSize.width / 2,
-            y: canvasPoint.y - textSize.height / 2,
+            x: point.x - textSize.width / 2,
+            y: point.y - textSize.height / 2,
             width: textSize.width,
             height: textSize.height
         )
         
-        // Flip the text drawing to match Core Graphics coordinate system
-        context.saveGState()
-        context.translateBy(x: 0, y: CGFloat(state.canvasHeight))
-        context.scaleBy(x: 1.0, y: -1.0)
-        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = nsContext
-        // Adjust Y coordinate for flipped context
-        let flippedRect = CGRect(
-            x: rect.minX,
-            y: CGFloat(state.canvasHeight) - rect.maxY,
-            width: rect.width,
-            height: rect.height
-        )
-        emojiString.draw(at: CGPoint(x: flippedRect.minX, y: flippedRect.minY))
+        emojiString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
         NSGraphicsContext.restoreGraphicsState()
-        context.restoreGState()
         context.restoreGState()
         #elseif canImport(UIKit)
         // Use selected font or system font
@@ -857,34 +853,22 @@ struct CanvasView: View {
         let textSize = emojiString.size()
         
         context.saveGState()
-        context.translateBy(x: canvasPoint.x, y: canvasPoint.y)
+        context.translateBy(x: point.x, y: point.y)
         context.rotate(by: -state.stampRotation * .pi / 180)
-        context.translateBy(x: -canvasPoint.x, y: -canvasPoint.y)
-        
-        // Flip the text drawing to match Core Graphics coordinate system
-        context.saveGState()
-        context.translateBy(x: 0, y: CGFloat(state.canvasHeight))
-        context.scaleBy(x: 1.0, y: -1.0)
+        context.translateBy(x: -point.x, y: -point.y)
         
         let rect = CGRect(
-            x: canvasPoint.x - textSize.width / 2,
-            y: canvasPoint.y - textSize.height / 2,
+            x: point.x - textSize.width / 2,
+            y: point.y - textSize.height / 2,
             width: textSize.width,
             height: textSize.height
         )
         
-        // Adjust Y coordinate for flipped context
-        let flippedRect = CGRect(
-            x: rect.minX,
-            y: CGFloat(state.canvasHeight) - rect.maxY,
-            width: rect.width,
-            height: rect.height
-        )
-        
+        // The context is already flipped, so we can draw directly
+        // UIGraphicsPushContext works correctly with the flipped context
         UIGraphicsPushContext(context)
-        emojiString.draw(at: CGPoint(x: flippedRect.minX, y: flippedRect.minY))
+        emojiString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
         UIGraphicsPopContext()
-        context.restoreGState()
         context.restoreGState()
         #endif
         
@@ -904,13 +888,35 @@ struct CanvasView: View {
         // Get pixel data from the image
         let width = cgImage.width
         let height = cgImage.height
+        
+        // Security: Validate dimensions to prevent integer overflow and excessive memory allocation
+        guard width > 0, height > 0,
+              width <= 10000, height <= 10000,
+              width * height <= 100_000_000 else { // Max 100M pixels to prevent memory exhaustion
+            return
+        }
+        
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bytesPerPixel = 4
+        
+        // Security: Check for integer overflow in memory calculation
+        var totalPixels = width * height
+        guard totalPixels > 0,
+              totalPixels <= 100_000_000,
+              totalPixels <= Int.max / bytesPerPixel else {
+            return
+        }
+        
         let bytesPerRow = bytesPerPixel * width
         let bitsPerComponent = 8
+        let totalBytes = totalPixels * bytesPerPixel
         
-        guard let pixelData = calloc(height * width, bytesPerPixel),
-              let context2 = CGContext(
+        guard let pixelData = calloc(totalPixels, bytesPerPixel),
+              pixelData != nil else {
+            return
+        }
+        
+        guard let context2 = CGContext(
                   data: pixelData,
                   width: width,
                   height: height,
@@ -919,6 +925,7 @@ struct CanvasView: View {
                   space: colorSpace,
                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
               ) else {
+            free(pixelData)
             return
         }
         
@@ -937,10 +944,17 @@ struct CanvasView: View {
         let flippedY = height - 1 - y
         
         // Get the target color at the clicked point
+        // Security: Validate coordinates before calculating index
+        guard x >= 0, x < width, flippedY >= 0, flippedY < height else {
+            free(pixelData)
+            return
+        }
+        
         let pixelIndex = (flippedY * width + x) * bytesPerPixel
-        let totalPixels = height * width * bytesPerPixel
-        // Bounds check
-        guard pixelIndex >= 0, pixelIndex + 3 < totalPixels else {
+        totalPixels = totalBytes
+        // Security: Additional bounds check
+        guard pixelIndex >= 0, pixelIndex + 3 < totalPixels,
+              pixelIndex < totalBytes else {
             free(pixelData)
             return
         }
@@ -953,21 +967,46 @@ struct CanvasView: View {
         // Flood fill to find the region to fill
         // Convert initial point from flipped coordinates to normal coordinates
         let normalY = height - 1 - y
+        
+        // Security: Validate initial point
+        guard x >= 0, x < width, normalY >= 0, normalY < height else {
+            free(pixelData)
+            return
+        }
+        
         var queue: [(Int, Int)] = [(x, normalY)]
         var visited = Set<String>()
         var minX = x, maxX = x, minY = normalY, maxY = normalY
         var fillRegion: [(Int, Int)] = []
         
-        while !queue.isEmpty {
+        // Security: Prevent DoS by limiting flood fill iterations and queue size
+        let maxIterations = 10_000_000 // Max 10M iterations to prevent infinite loops
+        let maxQueueSize = 1_000_000 // Max queue size to prevent memory exhaustion
+        var iterationCount = 0
+        
+        while !queue.isEmpty && iterationCount < maxIterations {
+            // Security: Limit queue size to prevent memory exhaustion
+            guard queue.count < maxQueueSize else {
+                // Queue too large, abort to prevent DoS
+                free(pixelData)
+                return
+            }
+            
             let (cx, cy) = queue.removeFirst()
+            iterationCount += 1
+            
             let key = "\(cx),\(cy)"
             
             if visited.contains(key) { continue }
-            if cx < 0 || cx >= width || cy < 0 || cy >= height { continue }
+            
+            // Security: Validate coordinates before accessing
+            guard cx >= 0, cx < width, cy >= 0, cy < height else { continue }
             
             let idx = (cy * width + cx) * bytesPerPixel
-            // Bounds check
-            guard idx >= 0, idx + 3 < totalPixels else { continue }
+            // Security: Bounds check with validated totalBytes
+            guard idx >= 0, idx + 3 < totalBytes,
+                  idx < totalBytes else { continue }
+            
             let r = pixelPtr[idx]
             let g = pixelPtr[idx + 1]
             let b = pixelPtr[idx + 2]
@@ -981,17 +1020,24 @@ struct CanvasView: View {
             visited.insert(key)
             fillRegion.append((cx, cy))
             
+            // Security: Limit fill region size to prevent memory exhaustion
+            guard fillRegion.count < 10_000_000 else {
+                // Region too large, abort
+                free(pixelData)
+                return
+            }
+            
             // Update bounding box
             minX = min(minX, cx)
             maxX = max(maxX, cx)
             minY = min(minY, cy)
             maxY = max(maxY, cy)
             
-            // Add neighbors to queue
-            queue.append((cx + 1, cy))
-            queue.append((cx - 1, cy))
-            queue.append((cx, cy + 1))
-            queue.append((cx, cy - 1))
+            // Add neighbors to queue (with bounds checking)
+            if cx + 1 < width { queue.append((cx + 1, cy)) }
+            if cx - 1 >= 0 { queue.append((cx - 1, cy)) }
+            if cy + 1 < height { queue.append((cx, cy + 1)) }
+            if cy - 1 >= 0 { queue.append((cx, cy - 1)) }
         }
         
         // If no region found, return
@@ -1021,48 +1067,80 @@ struct CanvasView: View {
             }
             
             // Fill all pixels in the region (coordinates are in normal space)
+            // Security: Validate each pixel before writing
             for (px, py) in fillRegion {
+                // Security: Validate coordinates before calculating index
+                guard px >= 0, px < width, py >= 0, py < height else { continue }
+                
                 let idx = (py * width + px) * bytesPerPixel
-                guard idx >= 0, idx + 3 < totalPixels else { continue }
+                // Security: Bounds check with validated totalBytes
+                guard idx >= 0, idx + 3 < totalBytes,
+                      idx < totalBytes else { continue }
+                
                 pixelPtr[idx] = fillR
                 pixelPtr[idx + 1] = fillG
                 pixelPtr[idx + 2] = fillB
                 pixelPtr[idx + 3] = fillA
             }
-        } else if state.fillPattern == .transparent {
-            // Transparent fill - clear the region
-            for (px, py) in fillRegion {
-                let idx = (py * width + px) * bytesPerPixel
-                guard idx >= 0, idx + 3 < totalPixels else { continue }
-                pixelPtr[idx] = 0
-                pixelPtr[idx + 1] = 0
-                pixelPtr[idx + 2] = 0
-                pixelPtr[idx + 3] = 0
-            }
-        } else {
-            // Pattern fill - create pattern in bounding box, then apply to region
-            let bounds = CGRect(
-                x: CGFloat(minX),
-                y: CGFloat(minY),
-                width: CGFloat(maxX - minX + 1),
-                height: CGFloat(maxY - minY + 1)
-            )
-            let patternWidth = Int(bounds.width)
-            let patternHeight = Int(bounds.height)
-            guard patternWidth > 0, patternHeight > 0,
-                  let patternData = calloc(patternHeight * patternWidth, bytesPerPixel),
-                  let patternContext = CGContext(
-                      data: patternData,
-                      width: patternWidth,
-                      height: patternHeight,
-                      bitsPerComponent: bitsPerComponent,
-                      bytesPerRow: bytesPerPixel * patternWidth,
-                      space: colorSpace,
-                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-                  ) else {
-                free(pixelData)
-                return
-            }
+            } else if state.fillPattern == .transparent {
+                // Transparent fill - clear the region
+                // Security: Validate each pixel before writing
+                for (px, py) in fillRegion {
+                    // Security: Validate coordinates before calculating index
+                    guard px >= 0, px < width, py >= 0, py < height else { continue }
+                    
+                    let idx = (py * width + px) * bytesPerPixel
+                    // Security: Bounds check with validated totalBytes
+                    guard idx >= 0, idx + 3 < totalBytes,
+                          idx < totalBytes else { continue }
+                    
+                    pixelPtr[idx] = 0
+                    pixelPtr[idx + 1] = 0
+                    pixelPtr[idx + 2] = 0
+                    pixelPtr[idx + 3] = 0
+                }
+            } else {
+                // Pattern fill - create pattern in bounding box, then apply to region
+                let bounds = CGRect(
+                    x: CGFloat(minX),
+                    y: CGFloat(minY),
+                    width: CGFloat(maxX - minX + 1),
+                    height: CGFloat(maxY - minY + 1)
+                )
+                let patternWidth = Int(bounds.width)
+                let patternHeight = Int(bounds.height)
+                
+                // Security: Validate pattern dimensions to prevent integer overflow
+                guard patternWidth > 0, patternHeight > 0,
+                      patternWidth <= 10000, patternHeight <= 10000,
+                      patternWidth * patternHeight <= 100_000_000,
+                      patternWidth * patternHeight <= Int.max / bytesPerPixel else {
+                    free(pixelData)
+                    return
+                }
+                
+                let patternTotalPixels = patternWidth * patternHeight
+                let patternTotalBytes = patternTotalPixels * bytesPerPixel
+                
+                guard let patternData = calloc(patternTotalPixels, bytesPerPixel),
+                      patternData != nil else {
+                    free(pixelData)
+                    return
+                }
+                
+                guard let patternContext = CGContext(
+                          data: patternData,
+                          width: patternWidth,
+                          height: patternHeight,
+                          bitsPerComponent: bitsPerComponent,
+                          bytesPerRow: bytesPerPixel * patternWidth,
+                          space: colorSpace,
+                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                      ) else {
+                    free(patternData)
+                    free(pixelData)
+                    return
+                }
             
             // Flip pattern context to match the coordinate system we're working in
             // Since we're working in normal coordinates, we need to flip the pattern context
@@ -1092,40 +1170,49 @@ struct CanvasView: View {
                 break
             }
             
-            // Get pattern pixel data
-            let patternPtr = patternData.assumingMemoryBound(to: UInt8.self)
-            let patternTotalPixels = patternHeight * patternWidth * bytesPerPixel
-            
-            // Apply pattern pixels to the fill region
-            // Both pattern and fillRegion are in normal coordinates
-            for (px, py) in fillRegion {
-                // Calculate position relative to pattern bounds
-                let relX = px - minX
-                let relY = py - minY
+                // Get pattern pixel data
+                let patternPtr = patternData.assumingMemoryBound(to: UInt8.self)
                 
-                guard relX >= 0, relX < patternWidth, relY >= 0, relY < patternHeight else {
-                    continue
+                // Apply pattern pixels to the fill region
+                // Both pattern and fillRegion are in normal coordinates
+                // Security: Validate all array accesses
+                for (px, py) in fillRegion {
+                    // Security: Validate main image coordinates
+                    guard px >= 0, px < width, py >= 0, py < height else {
+                        continue
+                    }
+                    
+                    // Calculate position relative to pattern bounds
+                    let relX = px - minX
+                    let relY = py - minY
+                    
+                    guard relX >= 0, relX < patternWidth, relY >= 0, relY < patternHeight else {
+                        continue
+                    }
+                    
+                    // Get pattern pixel (pattern context is flipped, so adjust Y)
+                    let patternY = patternHeight - 1 - relY
+                    guard patternY >= 0, patternY < patternHeight else { continue }
+                    
+                    let patternIdx = (patternY * patternWidth + relX) * bytesPerPixel
+                    
+                    // Get main image pixel index (in normal coordinates)
+                    let mainIdx = (py * width + px) * bytesPerPixel
+                    
+                    // Security: Bounds check for both arrays with validated sizes
+                    guard patternIdx >= 0, patternIdx + 3 < patternTotalBytes,
+                          patternIdx < patternTotalBytes,
+                          mainIdx >= 0, mainIdx + 3 < totalBytes,
+                          mainIdx < totalBytes else {
+                        continue
+                    }
+                    
+                    // Copy pattern pixel to main image
+                    pixelPtr[mainIdx] = patternPtr[patternIdx]
+                    pixelPtr[mainIdx + 1] = patternPtr[patternIdx + 1]
+                    pixelPtr[mainIdx + 2] = patternPtr[patternIdx + 2]
+                    pixelPtr[mainIdx + 3] = patternPtr[patternIdx + 3]
                 }
-                
-                // Get pattern pixel (pattern context is flipped, so adjust Y)
-                let patternY = patternHeight - 1 - relY
-                let patternIdx = (patternY * patternWidth + relX) * bytesPerPixel
-                
-                // Get main image pixel index (in normal coordinates)
-                let mainIdx = (py * width + px) * bytesPerPixel
-                
-                // Bounds check for both arrays
-                guard patternIdx >= 0, patternIdx + 3 < patternTotalPixels,
-                      mainIdx >= 0, mainIdx + 3 < totalPixels else {
-                    continue
-                }
-                
-                // Copy pattern pixel to main image
-                pixelPtr[mainIdx] = patternPtr[patternIdx]
-                pixelPtr[mainIdx + 1] = patternPtr[patternIdx + 1]
-                pixelPtr[mainIdx + 2] = patternPtr[patternIdx + 2]
-                pixelPtr[mainIdx + 3] = patternPtr[patternIdx + 3]
-            }
             
             free(patternData)
         }
@@ -1154,9 +1241,15 @@ struct CanvasView: View {
             }
 
             // Clear and redraw with filled image
-            // The canvas context is NOT flipped, so newCGImage (in normal coordinates) can be drawn directly
+            // The canvas context is flipped (top-left origin)
+            // newCGImage was created from a normal-coordinate context, so it's in bottom-left coordinates
+            // We need to flip it when drawing to the flipped context
             canvasContext.clear(CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+            canvasContext.saveGState()
+            canvasContext.translateBy(x: 0, y: CGFloat(imageHeight))
+            canvasContext.scaleBy(x: 1.0, y: -1.0)
             canvasContext.draw(newCGImage, in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
+            canvasContext.restoreGState()
 
             // Publish state changes on the main actor
             Task { @MainActor in
@@ -1168,14 +1261,59 @@ struct CanvasView: View {
         }
     }
     
+    // MARK: - Grid and Ruler Drawing
+    
+    /// Draw grid lines on the canvas
+    private func drawGrid(context: inout GraphicsContext, size: CGSize) {
+        let gridSize = state.gridSize
+        guard gridSize > 0 else { return }
+        
+        // Use a subtle color for grid lines
+        #if canImport(AppKit)
+        let gridColor = Color(nsColor: .separatorColor).opacity(0.3)
+        #else
+        let gridColor = Color(uiColor: .separator).opacity(0.3)
+        #endif
+        
+        context.strokeStyle = StrokeStyle(lineWidth: 0.5, lineCap: .round, lineJoin: .round)
+        context.opacity = 0.5
+        
+        // Draw vertical lines
+        var x: CGFloat = 0
+        while x <= size.width {
+            let path = Path { path in
+                path.move(to: CGPoint(x: x, y: 0))
+                path.addLine(to: CGPoint(x: x, y: size.height))
+            }
+            context.stroke(path, with: .color(gridColor))
+            x += gridSize
+        }
+        
+        // Draw horizontal lines
+        var y: CGFloat = 0
+        while y <= size.height {
+            let path = Path { path in
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
+            }
+            context.stroke(path, with: .color(gridColor))
+            y += gridSize
+        }
+        
+        context.opacity = 1.0
+    }
+    
     private func addSparkles(at point: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
-        // Validate point (point is already in Core Graphics coordinates)
+        // Security: Validate point with comprehensive checks
         guard point.x.isFinite, point.y.isFinite,
+              !point.x.isInfinite, !point.y.isInfinite,
+              !point.x.isNaN, !point.y.isNaN,
               point.x >= 0, point.y >= 0,
               point.x <= CGFloat(state.canvasWidth),
-              point.y <= CGFloat(state.canvasHeight) else { return }
+              point.y <= CGFloat(state.canvasHeight),
+              state.canvasWidth > 0, state.canvasHeight > 0 else { return }
         
         #if canImport(AppKit)
         let whiteColor = NSColor.white.cgColor
@@ -1185,16 +1323,34 @@ struct CanvasView: View {
         context.setFillColor(whiteColor)
         #endif
         
-        for _ in 0..<3 {
+        // Security: Limit number of sparkles to prevent resource exhaustion
+        let sparkleCount = min(3, 10) // Cap at reasonable limit
+        for _ in 0..<sparkleCount {
             let offsetX = CGFloat.random(in: -10...10)
             let offsetY = CGFloat.random(in: -10...10)
             var sparklePoint = CGPoint(x: point.x + offsetX, y: point.y + offsetY)
+            
+            // Security: Validate sparkle point
+            guard sparklePoint.x.isFinite, sparklePoint.y.isFinite,
+                  !sparklePoint.x.isInfinite, !sparklePoint.y.isInfinite,
+                  !sparklePoint.x.isNaN, !sparklePoint.y.isNaN else {
+                continue
+            }
             
             // Clamp sparkle point to canvas bounds
             sparklePoint.x = max(0, min(sparklePoint.x, CGFloat(state.canvasWidth)))
             sparklePoint.y = max(0, min(sparklePoint.y, CGFloat(state.canvasHeight)))
             
-            context.fillEllipse(in: CGRect(x: sparklePoint.x - 1, y: sparklePoint.y - 1, width: 2, height: 2))
+            // Security: Validate sparkle size
+            let sparkleSize: CGFloat = 2
+            guard sparklePoint.x - sparkleSize/2 >= 0,
+                  sparklePoint.y - sparkleSize/2 >= 0,
+                  sparklePoint.x + sparkleSize/2 <= CGFloat(state.canvasWidth),
+                  sparklePoint.y + sparkleSize/2 <= CGFloat(state.canvasHeight) else {
+                continue
+            }
+            
+            context.fillEllipse(in: CGRect(x: sparklePoint.x - sparkleSize/2, y: sparklePoint.y - sparkleSize/2, width: sparkleSize, height: sparkleSize))
         }
     }
     

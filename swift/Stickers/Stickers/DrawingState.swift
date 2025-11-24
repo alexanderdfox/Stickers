@@ -43,6 +43,11 @@ class DrawingState: ObservableObject {
     // MARK: - Zoom
     @Published var canvasZoom: Double = 1.0
     
+    // MARK: - Grid and Ruler
+    @Published var showGrid: Bool = false
+    @Published var showRuler: Bool = false
+    @Published var gridSize: CGFloat = 20 // Grid spacing in pixels
+    
     // MARK: - Layers
     @Published var layers: [DrawingLayer] = []
     @Published var activeLayerIndex: Int = 0
@@ -194,9 +199,12 @@ class DrawingState: ObservableObject {
     /// - Parameters:
     ///   - cgImage: The CGImage to load
     func loadImageAsBackground(_ cgImage: CGImage) {
-        // Validate image dimensions
+        // Security: Validate image dimensions and check for integer overflow
         guard cgImage.width > 0, cgImage.height > 0,
-              cgImage.width <= 10000, cgImage.height <= 10000 else {
+              cgImage.width <= 10000, cgImage.height <= 10000,
+              cgImage.width * cgImage.height <= 100_000_000,
+              cgImage.width <= Int.max / 4, // bytesPerPixel = 4
+              cgImage.height <= Int.max / 4 else {
             print("Invalid image dimensions: \(cgImage.width)x\(cgImage.height)")
             return
         }
@@ -221,8 +229,13 @@ class DrawingState: ObservableObject {
             return
         }
         
-        // The context is NOT flipped, so cgImage (in normal coordinates) can be drawn directly
+        // The context is flipped (top-left origin), and external CGImages are in normal (bottom-left) coordinates
+        // We need to flip the image when drawing to match the flipped context
+        context.saveGState()
+        context.translateBy(x: 0, y: CGFloat(canvasHeight))
+        context.scaleBy(x: 1.0, y: -1.0)
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+        context.restoreGState()
         
         // Rebuild layers array with new background and existing layers
         layers = [background]
@@ -238,7 +251,8 @@ class DrawingState: ObservableObject {
                let newContext = newLayer.canvas.context {
                 let sourceWidth = min(oldLayer.canvas.width, canvasWidth)
                 let sourceHeight = min(oldLayer.canvas.height, canvasHeight)
-                // The context is NOT flipped, so oldImage (in normal coordinates) can be drawn directly
+                // The context is flipped (top-left origin), and oldImage from a flipped context
+                // is also in top-left coordinates, so we can draw directly without flipping
                 newContext.draw(oldImage, in: CGRect(x: 0, y: 0, width: sourceWidth, height: sourceHeight))
             }
             
@@ -263,8 +277,13 @@ class DrawingState: ObservableObject {
         // Copy canvas content
         if let image = layer.canvas.createImage(),
            let context = newLayer.canvas.context {
-            // The context is NOT flipped, so image (in normal coordinates) can be drawn directly
+            // The context is flipped (top-left origin), but image is in normal (bottom-left) coordinates
+            // We need to flip the image when drawing to match the flipped context
+            context.saveGState()
+            context.translateBy(x: 0, y: CGFloat(canvasHeight))
+            context.scaleBy(x: 1.0, y: -1.0)
             context.draw(image, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+            context.restoreGState()
         }
         
         let insertIndex = min(activeLayerIndex + 1, layers.count)
@@ -329,8 +348,13 @@ class DrawingState: ObservableObject {
                 newLayer.opacity = layer.opacity
                 if let image = layer.canvas.createImage(),
                    let context = newLayer.canvas.context {
-                    // The context is NOT flipped, so image (in normal coordinates) can be drawn directly
+                    // The context is flipped (top-left origin), but image is in normal (bottom-left) coordinates
+                    // We need to flip the image when drawing to match the flipped context
+                    context.saveGState()
+                    context.translateBy(x: 0, y: CGFloat(canvasHeight))
+                    context.scaleBy(x: 1.0, y: -1.0)
                     context.draw(image, in: CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+                    context.restoreGState()
                 }
                 return newLayer
             },
@@ -414,8 +438,14 @@ class DrawingState: ObservableObject {
     ///   - width: New canvas width (1-10000)
     ///   - height: New canvas height (1-10000)
     func setCanvasSize(width: Int, height: Int) {
-        // Validate dimensions
-        guard width > 0, height > 0, width <= 10000, height <= 10000 else { return }
+        // Security: Validate dimensions and check for integer overflow
+        guard width > 0, height > 0,
+              width <= 10000, height <= 10000,
+              width * height <= 100_000_000,
+              width <= Int.max / 4, // bytesPerPixel = 4
+              height <= Int.max / 4 else {
+            return
+        }
         
         canvasWidth = width
         canvasHeight = height
@@ -432,8 +462,13 @@ class DrawingState: ObservableObject {
                let context = newLayer.canvas.context {
                 let copyWidth = min(width, layer.canvas.width)
                 let copyHeight = min(height, layer.canvas.height)
-                // The context is NOT flipped, so oldImage (in normal coordinates) can be drawn directly
+                // The context is flipped (top-left origin), but oldImage is in normal (bottom-left) coordinates
+                // We need to flip the image when drawing to match the flipped context
+                context.saveGState()
+                context.translateBy(x: 0, y: CGFloat(copyHeight))
+                context.scaleBy(x: 1.0, y: -1.0)
                 context.draw(oldImage, in: CGRect(x: 0, y: 0, width: copyWidth, height: copyHeight))
+                context.restoreGState()
             }
             
             updatedLayers.append(newLayer)

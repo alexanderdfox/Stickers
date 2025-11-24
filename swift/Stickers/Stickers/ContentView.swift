@@ -878,6 +878,22 @@ struct ContentView: View {
     }
     #elseif os(macOS)
     private func loadImageFromURL(_ url: URL) {
+        // Security: Validate URL scheme and path
+        guard url.isFileURL else {
+            print("Invalid file URL: \(url)")
+            return
+        }
+        
+        // Security: Validate file path to prevent path traversal
+        let path = url.path
+        guard !path.isEmpty,
+              path.count < 4096, // Reasonable path length limit
+              !path.contains(".."), // Prevent path traversal
+              !path.contains("//") else { // Prevent double slashes
+            print("Invalid file path: \(path)")
+            return
+        }
+        
         // Access security-scoped resource for fileImporter URLs
         guard url.startAccessingSecurityScopedResource() else {
             print("Failed to access security-scoped resource: \(url)")
@@ -888,16 +904,51 @@ struct ContentView: View {
             url.stopAccessingSecurityScopedResource()
         }
         
+        // Security: Validate file exists and is readable
+        guard FileManager.default.fileExists(atPath: path),
+              FileManager.default.isReadableFile(atPath: path) else {
+            print("File does not exist or is not readable: \(path)")
+            return
+        }
+        
         // Try loading as NSImage first (simpler for most cases)
         if let nsImage = NSImage(contentsOf: url) {
+            // Security: Validate image dimensions
+            if let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+                guard cgImage.width > 0, cgImage.height > 0,
+                      cgImage.width <= 10000, cgImage.height <= 10000,
+                      cgImage.width * cgImage.height <= 100_000_000 else {
+                    print("Image dimensions too large: \(cgImage.width)x\(cgImage.height)")
+                    return
+                }
+            }
             handleImportedImage(nsImage)
             return
         }
         
         // Fallback: Load using CGImageSource for better compatibility
-        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
+        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            print("Failed to create image source from URL: \(url)")
+            return
+        }
+        
+        // Security: Validate image count
+        let imageCount = CGImageSourceGetCount(imageSource)
+        guard imageCount > 0, imageCount <= 1000 else { // Limit to 1000 images
+            print("Invalid image count: \(imageCount)")
+            return
+        }
+        
+        guard let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
             print("Failed to load image from URL: \(url)")
+            return
+        }
+        
+        // Security: Validate image dimensions
+        guard cgImage.width > 0, cgImage.height > 0,
+              cgImage.width <= 10000, cgImage.height <= 10000,
+              cgImage.width * cgImage.height <= 100_000_000 else {
+            print("Image dimensions too large: \(cgImage.width)x\(cgImage.height)")
             return
         }
         
@@ -971,16 +1022,47 @@ struct ContentView: View {
             return
         }
         
-        // Draw the imported image at the current position
-        let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
-        let imageSize = CGSize(width: img.width, height: img.height)
-        // Guard against division by zero
-        guard imageSize.width > 0, imageSize.height > 0 else {
+        // Security: Validate image dimensions
+        guard img.width > 0, img.height > 0,
+              img.width <= 10000, img.height <= 10000,
+              img.width * img.height <= 100_000_000 else {
+            print("Imported image dimensions too large: \(img.width)x\(img.height)")
             importedImage = nil
             return
         }
+        
+        // Draw the imported image at the current position
+        let canvasSize = CGSize(width: state.canvasWidth, height: state.canvasHeight)
+        let imageSize = CGSize(width: img.width, height: img.height)
+        
+        // Security: Validate scale calculation
+        guard imageSize.width > 0, imageSize.height > 0,
+              imageSize.width.isFinite, imageSize.height.isFinite,
+              canvasSize.width.isFinite, canvasSize.height.isFinite else {
+            importedImage = nil
+            return
+        }
+        
         let scale = min(canvasSize.width / imageSize.width, canvasSize.height / imageSize.height) * 0.8
+        
+        // Security: Validate scaled size
+        guard scale.isFinite, !scale.isInfinite, !scale.isNaN,
+              scale > 0, scale < 1000 else { // Reasonable scale limit
+            importedImage = nil
+            return
+        }
+        
         let scaledSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        
+        // Security: Validate scaled dimensions
+        guard scaledSize.width.isFinite, scaledSize.height.isFinite,
+              !scaledSize.width.isInfinite, !scaledSize.height.isInfinite,
+              !scaledSize.width.isNaN, !scaledSize.height.isNaN,
+              scaledSize.width > 0, scaledSize.height > 0,
+              scaledSize.width <= 10000, scaledSize.height <= 10000 else {
+            importedImage = nil
+            return
+        }
         
         // The context is already flipped, so we can draw directly
         context.draw(img, in: CGRect(
@@ -1151,9 +1233,24 @@ struct ContentView: View {
     }
     
     private func renderCombinedMacImage() -> NSImage? {
+        // Security: Validate canvas dimensions
+        guard state.canvasWidth > 0, state.canvasHeight > 0,
+              state.canvasWidth <= 10000, state.canvasHeight <= 10000,
+              state.canvasWidth * state.canvasHeight <= 100_000_000,
+              state.canvasWidth <= Int.max / 4, // bytesPerPixel = 4
+              state.canvasHeight <= Int.max / 4 else {
+            return nil
+        }
+        
         let size = NSSize(width: state.canvasWidth, height: state.canvasHeight)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bytesPerPixel = 4
+        
+        // Security: Check for integer overflow in bytesPerRow calculation
+        guard state.canvasWidth <= Int.max / bytesPerPixel else {
+            return nil
+        }
+        
         let bytesPerRow = state.canvasWidth * bytesPerPixel
         let bitsPerComponent = 8
         
@@ -1306,12 +1403,29 @@ struct ContentView: View {
         
         let response = alert.runModal()
         if response == .alertSecondButtonReturn {
-            // Ensure the file exists before trying to show it
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                showSaveError("File no longer exists at: \(url.path)")
+            // Security: Validate file path
+            let path = url.path
+            guard !path.isEmpty,
+                  path.count < 4096, // Reasonable path length limit
+                  !path.contains(".."), // Prevent path traversal
+                  !path.contains("//") else { // Prevent double slashes
+                showSaveError("Invalid file path")
                 return
             }
-            let fileURL = URL(fileURLWithPath: url.path)
+            
+            // Ensure the file exists before trying to show it
+            guard FileManager.default.fileExists(atPath: path) else {
+                showSaveError("File no longer exists at: \(path)")
+                return
+            }
+            
+            // Security: Validate it's a file URL
+            guard url.isFileURL else {
+                showSaveError("Invalid file URL")
+                return
+            }
+            
+            let fileURL = URL(fileURLWithPath: path)
             NSWorkspace.shared.activateFileViewerSelecting([fileURL])
         }
     }
@@ -1324,11 +1438,53 @@ struct ContentView: View {
     }
     
     private func convertExportFormat(at url: URL) {
+        // Security: Validate URL
+        guard url.isFileURL else {
+            self.showSaveError("Invalid file URL")
+            return
+        }
+        
+        let path = url.path
+        guard !path.isEmpty,
+              path.count < 4096, // Reasonable path length limit
+              !path.contains(".."), // Prevent path traversal
+              !path.contains("//") else { // Prevent double slashes
+            self.showSaveError("Invalid file path")
+            return
+        }
+        
+        // Security: Validate file exists and is readable
+        guard FileManager.default.fileExists(atPath: path),
+              FileManager.default.isReadableFile(atPath: path) else {
+            self.showSaveError("File does not exist or is not readable")
+            return
+        }
+        
+        // Security: Limit file size to prevent memory exhaustion (max 100MB)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let fileSize = attributes[.size] as? Int64,
+              fileSize > 0, fileSize <= 100_000_000 else {
+            self.showSaveError("File is too large or invalid")
+            return
+        }
+        
         // Read the PNG data that was saved
         guard let pngData = try? Data(contentsOf: url),
+              pngData.count > 0,
+              pngData.count <= 100_000_000, // Max 100MB
               let nsImage = NSImage(data: pngData) else {
             self.showSaveError("Failed to read saved file")
             return
+        }
+        
+        // Security: Validate image dimensions
+        if let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            guard cgImage.width > 0, cgImage.height > 0,
+                  cgImage.width <= 10000, cgImage.height <= 10000,
+                  cgImage.width * cgImage.height <= 100_000_000 else {
+                self.showSaveError("Image dimensions too large")
+                return
+            }
         }
         
         // Convert to requested format
@@ -1352,18 +1508,56 @@ struct ContentView: View {
             return
         }
         
+        // Security: Validate final URL
+        guard finalURL.isFileURL else {
+            self.showSaveError("Invalid file URL")
+            return
+        }
+        
+        let finalPath = finalURL.path
+        guard !finalPath.isEmpty,
+              finalPath.count < 4096, // Reasonable path length limit
+              !finalPath.contains(".."), // Prevent path traversal
+              !finalPath.contains("//") else { // Prevent double slashes
+            self.showSaveError("Invalid file path")
+            return
+        }
+        
+        // Security: Validate data size
+        guard let data = finalData,
+              data.count > 0,
+              data.count <= 100_000_000 else { // Max 100MB
+            self.showSaveError("Data size invalid or too large")
+            return
+        }
+        
         // Write final file first, then delete original if successful
         do {
+            // Security: Ensure parent directory exists and is writable
+            let parentDir = finalURL.deletingLastPathComponent()
+            if !FileManager.default.fileExists(atPath: parentDir.path) {
+                try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true, attributes: nil)
+            }
+            
+            guard FileManager.default.isWritableFile(atPath: parentDir.path) else {
+                self.showSaveError("Directory is not writable")
+                return
+            }
+            
             try data.write(to: finalURL)
             
             // Only delete original PNG file after successful write
             if exportFormat != .png {
-                try? FileManager.default.removeItem(at: url)
+                // Security: Only delete if it's a file URL and exists
+                if url.isFileURL && FileManager.default.fileExists(atPath: url.path) {
+                    try? FileManager.default.removeItem(at: url)
+                }
             }
             
             self.showSaveSuccess(at: finalURL)
         } catch {
-            self.showSaveError("Failed to save: \(error.localizedDescription)")
+            // Security: Don't expose full error details to prevent information leakage
+            self.showSaveError("Failed to save file")
             // Don't delete original file if write failed
         }
     }

@@ -172,46 +172,55 @@ class SoundEffects {
         let frameCount = AVAudioFrameCount(Int(sampleRate * duration))
         
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
-            // Fallback to minimal buffer
+            // Fallback to smaller buffer
             if let fallbackBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 100) {
                 fallbackBuffer.frameLength = 100
                 return fallbackBuffer
             }
-            // Last resort: create a minimal buffer with a safe format
-            // This should never fail, but if it does, we'll create a basic format
+            
+            // Try with a standard format
+            if let standardFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1),
+               let minimal = AVAudioPCMBuffer(pcmFormat: standardFormat, frameCapacity: 16) {
+                minimal.frameLength = 16
+                if let ch = minimal.floatChannelData {
+                    for i in 0..<Int(minimal.frameLength) { ch[0][i] = 0 }
+                }
+                return minimal
+            }
+            
+            // Try with original format and minimal capacity
+            if let minimalBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1) {
+                minimalBuffer.frameLength = 1
+                if let ch = minimalBuffer.floatChannelData {
+                    ch[0][0] = 0
+                }
+                return minimalBuffer
+            }
+            
+            // Try with alternative sample rate
+            if let altFormat = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1),
+               let buffer = AVAudioPCMBuffer(pcmFormat: altFormat, frameCapacity: 1) {
+                buffer.frameLength = 1
+                if let ch = buffer.floatChannelData {
+                    ch[0][0] = 0
+                }
+                return buffer
+            }
+            
+            // Final fallback: create a minimal buffer with a safe format
+            // This should always succeed, but if it doesn't, we need to handle it
             let safeFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? format
-            guard let minimal = AVAudioPCMBuffer(pcmFormat: safeFormat, frameCapacity: 16) else {
-                // Ultimate fallback: return a zero-filled buffer using the original format
-                // This should never happen, but provides a safe fallback
-                if let ultimateBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1) {
-                    ultimateBuffer.frameLength = 1
-                    if let ch = ultimateBuffer.floatChannelData {
-                        ch[0][0] = 0
-                    }
-                    return ultimateBuffer
-                }
-                // If even that fails, try one more time with a different format
-                // Return a silent buffer to avoid crashing
-                if let lastResort = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1),
-                   let buffer = AVAudioPCMBuffer(pcmFormat: lastResort, frameCapacity: 1) {
-                    buffer.frameLength = 1
-                    if let ch = buffer.floatChannelData {
-                        ch[0][0] = 0
-                    }
-                    return buffer
-                }
-                // Final fallback: return format's buffer (this should always succeed)
-                return AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1) ?? {
-                    // This should never execute, but provides a non-nil return
-                    let finalFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? format
-                    return AVAudioPCMBuffer(pcmFormat: finalFormat, frameCapacity: 1)!
-                }()
+            if let finalBuffer = AVAudioPCMBuffer(pcmFormat: safeFormat, frameCapacity: 1) {
+                finalBuffer.frameLength = 1
+                return finalBuffer
             }
-            minimal.frameLength = 16
-            if let ch = minimal.floatChannelData {
-                for i in 0..<Int(minimal.frameLength) { ch[0][i] = 0 }
-            }
-            return minimal
+            
+            // Absolute last resort - this should never execute
+            // Create a buffer with the original format
+            // If this fails, the audio system is broken, but we must return something
+            // Use force unwrap as a last resort since the function must return a non-optional
+            let emergencyFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) ?? format
+            return AVAudioPCMBuffer(pcmFormat: emergencyFormat, frameCapacity: 1) ?? AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1)!
         }
         
         buffer.frameLength = frameCount
@@ -392,4 +401,5 @@ extension AppPreferences {
         }
     }
 }
+
 

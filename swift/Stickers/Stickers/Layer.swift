@@ -66,14 +66,11 @@ class DrawingLayer: Identifiable, ObservableObject {
             let image = Image(cgImage, scale: 1.0, label: Text("Layer"))
             let size = CGSize(width: cgImage.width, height: cgImage.height)
             
-            // The canvas context is NOT flipped, so CGImage is in normal (bottom-left) coordinates
-            // SwiftUI's GraphicsContext uses top-left origin, so we need to flip the image vertically
-            context.translateBy(x: 0, y: size.height)
-            context.scaleBy(x: 1.0, y: -1.0)
+            // The canvas context is flipped (top-left origin) to match SwiftUI
+            // When creating a CGImage from a flipped context, the image data reflects the flipped state
+            // SwiftUI's GraphicsContext also uses top-left origin
+            // So we can draw directly without flipping - the image is already in the correct orientation
             context.draw(image, in: CGRect(origin: .zero, size: size))
-            // Reverse the transform
-            context.scaleBy(x: 1.0, y: -1.0)
-            context.translateBy(x: 0, y: -size.height)
         }
     }
 }
@@ -92,23 +89,50 @@ class Canvas {
     ///   - width: Canvas width in pixels (1-10000)
     ///   - height: Canvas height in pixels (1-10000)
     init(width: Int, height: Int) {
-        // Clamp dimensions to valid range
-        self.width = max(1, min(10000, width))
-        self.height = max(1, min(10000, height))
+        // Security: Validate and clamp dimensions to valid range
+        // Also check for integer overflow in total pixels
+        let clampedWidth = max(1, min(10000, width))
+        let clampedHeight = max(1, min(10000, height))
+        
+        // Security: Check for integer overflow
+        guard clampedWidth > 0, clampedHeight > 0,
+              clampedWidth <= 10000, clampedHeight <= 10000,
+              clampedWidth * clampedHeight <= 100_000_000,
+              clampedWidth * clampedHeight <= Int.max / 4 else { // 4 bytes per pixel
+            // Use safe defaults if validation fails
+            self.width = 800
+            self.height = 600
+            createContext()
+            return
+        }
+        
+        self.width = clampedWidth
+        self.height = clampedHeight
         createContext()
     }
     
     /// Create the Core Graphics context with flipped coordinate system
     /// Note: This method can be called multiple times to recreate the context if needed
     private func createContext() {
-        // Dimensions are already clamped in init, but validate again for safety
-        guard width > 0, height > 0, width <= 10000, height <= 10000 else {
+        // Security: Validate dimensions and check for integer overflow
+        guard width > 0, height > 0,
+              width <= 10000, height <= 10000,
+              width * height <= 100_000_000,
+              width <= Int.max / 4, // bytesPerPixel = 4
+              height <= Int.max / 4 else {
             cgContext = nil
             return
         }
         
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         let bytesPerPixel = 4
+        
+        // Security: Check for integer overflow in bytesPerRow calculation
+        guard width <= Int.max / bytesPerPixel else {
+            cgContext = nil
+            return
+        }
+        
         let bytesPerRow = width * bytesPerPixel
         let bitsPerComponent = 8
         
@@ -125,9 +149,11 @@ class Canvas {
             return
         }
         
-        // Don't flip the coordinate system - we'll handle coordinates manually
-        // This ensures drawing operations work correctly with SwiftUI's top-left origin
-        // Core Graphics uses bottom-left origin by default, but we'll convert coordinates
+        // Flip the coordinate system so (0,0) is at top-left like SwiftUI
+        // Core Graphics uses bottom-left origin by default
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1.0, y: -1.0)
+        
         cgContext = context
     }
     
@@ -184,7 +210,8 @@ class Canvas {
             // If source has no image, return empty canvas (already initialized with white background)
             return newCanvas
         }
-        // The context is NOT flipped, so image (in normal coordinates) can be drawn directly
+        // The context is flipped (top-left origin), and the image from a flipped context
+        // is also in top-left coordinates, so we can draw directly without flipping
         newContext.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         return newCanvas
     }
