@@ -66,11 +66,8 @@ class DrawingLayer: Identifiable, ObservableObject {
             let image = Image(cgImage, scale: 1.0, label: Text("Layer"))
             let size = CGSize(width: cgImage.width, height: cgImage.height)
             
-            // The canvas context is flipped (top-left origin), so when we create a CGImage from it,
-            // the CGImage is in normal (bottom-left) coordinates. SwiftUI's GraphicsContext uses
-            // top-left origin, so we need to flip the image vertically when drawing.
-            // Since SwiftUI GraphicsContext doesn't have saveGState/restoreGState, we manually
-            // apply and reverse the transform.
+            // The canvas context is NOT flipped, so CGImage is in normal (bottom-left) coordinates
+            // SwiftUI's GraphicsContext uses top-left origin, so we need to flip the image vertically
             context.translateBy(x: 0, y: size.height)
             context.scaleBy(x: 1.0, y: -1.0)
             context.draw(image, in: CGRect(origin: .zero, size: size))
@@ -128,11 +125,9 @@ class Canvas {
             return
         }
         
-        // Flip the coordinate system so (0,0) is at top-left like SwiftUI
-        // Core Graphics uses bottom-left origin by default
-        context.translateBy(x: 0, y: CGFloat(height))
-        context.scaleBy(x: 1.0, y: -1.0)
-        
+        // Don't flip the coordinate system - we'll handle coordinates manually
+        // This ensures drawing operations work correctly with SwiftUI's top-left origin
+        // Core Graphics uses bottom-left origin by default, but we'll convert coordinates
         cgContext = context
     }
     
@@ -189,13 +184,8 @@ class Canvas {
             // If source has no image, return empty canvas (already initialized with white background)
             return newCanvas
         }
-        // The context is flipped (top-left origin), but image is in normal (bottom-left) coordinates
-        // We need to flip the image when drawing to match the flipped context
-        newContext.saveGState()
-        newContext.translateBy(x: 0, y: CGFloat(height))
-        newContext.scaleBy(x: 1.0, y: -1.0)
+        // The context is NOT flipped, so image (in normal coordinates) can be drawn directly
         newContext.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        newContext.restoreGState()
         return newCanvas
     }
 }

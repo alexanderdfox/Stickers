@@ -395,6 +395,13 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        // SwiftUI: (0,0) is top-left, y increases downward
+        // Core Graphics: (0,0) is bottom-left, y increases upward
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
+        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
+        
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
         context.setLineJoin(.round)
@@ -415,7 +422,7 @@ struct CanvasView: View {
             if let cgColor = color.cgColor {
                 context.setStrokeColor(cgColor)
             }
-            drawSprayEffect(from: start, to: end, on: layer)
+            drawSprayEffect(from: canvasStart, to: canvasEnd, on: layer)
             return // Early return since spray handles its own drawing
         } else {
             // Normal drawing tools
@@ -426,12 +433,12 @@ struct CanvasView: View {
             }
         }
         
-        context.move(to: start)
-        context.addLine(to: end)
+        context.move(to: canvasStart)
+        context.addLine(to: canvasEnd)
         context.strokePath()
         
         if state.sparkleMode && state.currentTool != .eraser {
-            addSparkles(at: end, on: layer)
+            addSparkles(at: canvasEnd, on: layer)
         }
         
         // Note: Update counter is handled in handleDraw for better performance
@@ -441,6 +448,7 @@ struct CanvasView: View {
     private func drawSprayEffect(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
+        // start and end are already in Core Graphics coordinates (converted in drawPath)
         let color = state.rainbowMode ? getRainbowColor() : state.currentColor
         guard let cgColor = color.cgColor else { return }
         
@@ -480,6 +488,11 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
+        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
+        
         context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
@@ -489,12 +502,12 @@ struct CanvasView: View {
             context.setStrokeColor(cgColor)
         }
         
-        context.move(to: start)
-        context.addLine(to: end)
+        context.move(to: canvasStart)
+        context.addLine(to: canvasEnd)
         context.strokePath()
         
         if state.sparkleMode {
-            addSparkles(at: end, on: layer)
+            addSparkles(at: canvasEnd, on: layer)
         }
         
         // Force canvas update
@@ -550,11 +563,16 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
+        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
+        
         let rect = CGRect(
-            x: min(start.x, end.x),
-            y: min(start.y, end.y),
-            width: abs(end.x - start.x),
-            height: abs(end.y - start.y)
+            x: min(canvasStart.x, canvasEnd.x),
+            y: min(canvasStart.y, canvasEnd.y),
+            width: abs(canvasEnd.x - canvasStart.x),
+            height: abs(canvasEnd.y - canvasStart.y)
         )
         
         // Skip if rect is too small
@@ -593,15 +611,20 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        let width = abs(end.x - start.x)
-        let height = abs(end.y - start.y)
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
+        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
+        
+        let width = abs(canvasEnd.x - canvasStart.x)
+        let height = abs(canvasEnd.y - canvasStart.y)
         
         // Skip if too small
         guard width > 0.5 || height > 0.5 else { return }
         
-        let centerX = (start.x + end.x) / 2
-        let topY = min(start.y, end.y)
-        let bottomY = max(start.y, end.y)
+        let centerX = (canvasStart.x + canvasEnd.x) / 2
+        let topY = min(canvasStart.y, canvasEnd.y)
+        let bottomY = max(canvasStart.y, canvasEnd.y)
         
         let path = CGMutablePath()
         path.move(to: CGPoint(x: centerX, y: topY))
@@ -643,14 +666,19 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        let width = abs(end.x - start.x)
-        let height = abs(end.y - start.y)
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
+        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
+        
+        let width = abs(canvasEnd.x - canvasStart.x)
+        let height = abs(canvasEnd.y - canvasStart.y)
         
         // Skip if too small
         guard width > 1 || height > 1 else { return }
         
-        let centerX = (start.x + end.x) / 2
-        let centerY = (start.y + end.y) / 2
+        let centerX = (canvasStart.x + canvasEnd.x) / 2
+        let centerY = (canvasStart.y + canvasEnd.y) / 2
         let radius = max(1, min(width, height) / 2)
         
         let path = createStarPath(center: CGPoint(x: centerX, y: centerY), radius: radius, points: 5)
@@ -689,12 +717,17 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
-        let centerX = (start.x + end.x) / 2
-        let centerY = (start.y + end.y) / 2
-        let radius = max(1, sqrt(pow(end.x - start.x, 2) + pow(end.y - start.y, 2)) / 2)
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasStart = CGPoint(x: start.x, y: canvasHeight - start.y)
+        let canvasEnd = CGPoint(x: end.x, y: canvasHeight - end.y)
+        
+        let centerX = (canvasStart.x + canvasEnd.x) / 2
+        let centerY = (canvasStart.y + canvasEnd.y) / 2
+        let radius = max(1, sqrt(pow(canvasEnd.x - canvasStart.x, 2) + pow(canvasEnd.y - canvasStart.y, 2)) / 2)
         
         let path = CGMutablePath()
-        let startAngle = atan2(start.y - centerY, start.x - centerX)
+        let startAngle = atan2(canvasStart.y - centerY, canvasStart.x - centerX)
         let endAngle = startAngle + (state.arcSweepAngle * .pi / 180)
         
         path.addArc(center: CGPoint(x: centerX, y: centerY),
@@ -750,6 +783,10 @@ struct CanvasView: View {
         guard point.x.isFinite, point.y.isFinite,
               !state.selectedEmoji.isEmpty else { return }
         
+        // Convert coordinates from SwiftUI (top-left origin) to Core Graphics (bottom-left origin)
+        let canvasHeight = CGFloat(state.canvasHeight)
+        let canvasPoint = CGPoint(x: point.x, y: canvasHeight - point.y)
+        
         // Draw emoji as text
         let fontSize = max(8, CGFloat(state.brushSize * 4))
         
@@ -771,25 +808,36 @@ struct CanvasView: View {
         let textSize = emojiString.size()
         
         context.saveGState()
-        context.translateBy(x: point.x, y: point.y)
+        context.translateBy(x: canvasPoint.x, y: canvasPoint.y)
         context.rotate(by: -state.stampRotation * .pi / 180) // Negative for correct rotation direction
-        context.translateBy(x: -point.x, y: -point.y)
+        context.translateBy(x: -canvasPoint.x, y: -canvasPoint.y)
         
         // Draw emoji using NSGraphicsContext for macOS
+        // Context is NOT flipped, so we need to flip the text drawing
         let rect = CGRect(
-            x: point.x - textSize.width / 2,
-            y: point.y - textSize.height / 2,
+            x: canvasPoint.x - textSize.width / 2,
+            y: canvasPoint.y - textSize.height / 2,
             width: textSize.width,
             height: textSize.height
         )
         
-        // The context is already flipped, so we don't need to flip again
-        // Use flipped: false to avoid double-flipping
-        let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
+        // Flip the text drawing to match Core Graphics coordinate system
+        context.saveGState()
+        context.translateBy(x: 0, y: CGFloat(state.canvasHeight))
+        context.scaleBy(x: 1.0, y: -1.0)
+        let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = nsContext
-        emojiString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
+        // Adjust Y coordinate for flipped context
+        let flippedRect = CGRect(
+            x: rect.minX,
+            y: CGFloat(state.canvasHeight) - rect.maxY,
+            width: rect.width,
+            height: rect.height
+        )
+        emojiString.draw(at: CGPoint(x: flippedRect.minX, y: flippedRect.minY))
         NSGraphicsContext.restoreGraphicsState()
+        context.restoreGState()
         context.restoreGState()
         #elseif canImport(UIKit)
         // Use selected font or system font
@@ -809,22 +857,34 @@ struct CanvasView: View {
         let textSize = emojiString.size()
         
         context.saveGState()
-        context.translateBy(x: point.x, y: point.y)
+        context.translateBy(x: canvasPoint.x, y: canvasPoint.y)
         context.rotate(by: -state.stampRotation * .pi / 180)
-        context.translateBy(x: -point.x, y: -point.y)
+        context.translateBy(x: -canvasPoint.x, y: -canvasPoint.y)
+        
+        // Flip the text drawing to match Core Graphics coordinate system
+        context.saveGState()
+        context.translateBy(x: 0, y: CGFloat(state.canvasHeight))
+        context.scaleBy(x: 1.0, y: -1.0)
         
         let rect = CGRect(
-            x: point.x - textSize.width / 2,
-            y: point.y - textSize.height / 2,
+            x: canvasPoint.x - textSize.width / 2,
+            y: canvasPoint.y - textSize.height / 2,
             width: textSize.width,
             height: textSize.height
         )
         
-        // The context is already flipped, so we can draw directly
-        // UIGraphicsPushContext works correctly with the flipped context
+        // Adjust Y coordinate for flipped context
+        let flippedRect = CGRect(
+            x: rect.minX,
+            y: CGFloat(state.canvasHeight) - rect.maxY,
+            width: rect.width,
+            height: rect.height
+        )
+        
         UIGraphicsPushContext(context)
-        emojiString.draw(at: CGPoint(x: rect.minX, y: rect.minY))
+        emojiString.draw(at: CGPoint(x: flippedRect.minX, y: flippedRect.minY))
         UIGraphicsPopContext()
+        context.restoreGState()
         context.restoreGState()
         #endif
         
@@ -1094,14 +1154,9 @@ struct CanvasView: View {
             }
 
             // Clear and redraw with filled image
-            // The canvas context is flipped (top-left origin), but newCGImage is in normal coordinates
-            // We need to flip it when drawing to match the flipped context
+            // The canvas context is NOT flipped, so newCGImage (in normal coordinates) can be drawn directly
             canvasContext.clear(CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
-            canvasContext.saveGState()
-            canvasContext.translateBy(x: 0, y: CGFloat(imageHeight))
-            canvasContext.scaleBy(x: 1.0, y: -1.0)
             canvasContext.draw(newCGImage, in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
-            canvasContext.restoreGState()
 
             // Publish state changes on the main actor
             Task { @MainActor in
@@ -1116,7 +1171,7 @@ struct CanvasView: View {
     private func addSparkles(at point: CGPoint, on layer: DrawingLayer) {
         guard let context = layer.canvas.context else { return }
         
-        // Validate point
+        // Validate point (point is already in Core Graphics coordinates)
         guard point.x.isFinite, point.y.isFinite,
               point.x >= 0, point.y >= 0,
               point.x <= CGFloat(state.canvasWidth),
