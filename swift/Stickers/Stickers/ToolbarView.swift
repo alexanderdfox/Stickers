@@ -23,9 +23,7 @@ struct SystemFonts {
         
         #if canImport(AppKit)
         // macOS system fonts
-        if let fontFamilies = NSFontManager.shared.availableFontFamilies as? [String] {
-            fonts = fontFamilies.sorted()
-        }
+        fonts = NSFontManager.shared.availableFontFamilies.sorted()
         #elseif canImport(UIKit)
         // iOS system fonts
         fonts = UIFont.familyNames.sorted()

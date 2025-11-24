@@ -909,7 +909,7 @@ struct CanvasView: View {
     }
     
     private func fillAt(point: CGPoint, on layer: DrawingLayer) {
-        guard let context = layer.canvas.context,
+        guard let _ = layer.canvas.context,
               let cgImage = layer.canvas.createImage() else { return }
         
         // Validate point
@@ -943,8 +943,7 @@ struct CanvasView: View {
         let bitsPerComponent = 8
         let totalBytes = totalPixels * bytesPerPixel
         
-        guard let pixelData = calloc(totalPixels, bytesPerPixel),
-              pixelData != nil else {
+        guard let pixelData = calloc(totalPixels, bytesPerPixel) else {
             return
         }
         
@@ -1154,8 +1153,7 @@ struct CanvasView: View {
                 let patternTotalPixels = patternWidth * patternHeight
                 let patternTotalBytes = patternTotalPixels * bytesPerPixel
                 
-                guard let patternData = calloc(patternTotalPixels, bytesPerPixel),
-                      patternData != nil else {
+                guard let patternData = calloc(patternTotalPixels, bytesPerPixel) else {
                     free(pixelData)
                     return
                 }
@@ -1500,7 +1498,8 @@ struct CanvasView: View {
         
         // Create color space and pattern
         let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let patternSpace = CGColorSpace(patternBaseSpace: colorSpace) else {
+        // Validate that pattern color space can be created (used later in fillShape)
+        guard CGColorSpace(patternBaseSpace: colorSpace) != nil else {
             infoPtr.deinitialize(count: 1)
             infoPtr.deallocate()
             return nil
@@ -1776,7 +1775,7 @@ struct CanvasView: View {
             context.stroke(Path(rect), with: .color(previewColor.opacity(0.5)), style: strokeStyle)
         case .triangle:
             let width = abs(ep.x - sp.x)
-            let height = abs(ep.y - sp.y)
+            let _ = abs(ep.y - sp.y) // Height calculated but not used in triangle path
             let centerX = (sp.x + ep.x) / 2
             let topY = min(sp.y, ep.y)
             let bottomY = max(sp.y, ep.y)

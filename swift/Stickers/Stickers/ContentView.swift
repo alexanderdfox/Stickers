@@ -1503,7 +1503,7 @@ struct ContentView: View {
             finalURL = url.deletingPathExtension().appendingPathExtension("icns")
         }
         
-        guard let data = finalData else {
+        guard finalData != nil else {
             self.showSaveError("Failed to convert to \(exportFormat.rawValue)")
             return
         }
