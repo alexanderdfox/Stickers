@@ -191,7 +191,7 @@ struct StartScreenView: View {
         #if os(macOS)
         .fileImporter(
             isPresented: $showFilePicker,
-            allowedContentTypes: [.png, .jpeg, .image, .heic, .heif, .tiff, .tif, .bmp, .gif],
+            allowedContentTypes: [.png, .jpeg, .image, .heic, .heif, .tiff, .bmp, .gif],
             allowsMultipleSelection: false
         ) { result in
             handleFileSelection(result)
@@ -310,7 +310,7 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     let onError: (String) -> Void
     
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image, .png, .jpeg, .heic, .heif, .tiff, .tif, .bmp, .gif])
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image, .png, .jpeg, .heic, .heif, .tiff, .bmp, .gif])
         picker.delegate = context.coordinator
         picker.allowsMultipleSelection = false
         return picker

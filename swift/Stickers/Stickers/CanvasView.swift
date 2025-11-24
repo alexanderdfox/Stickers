@@ -803,12 +803,17 @@ struct CanvasView: View {
         }
         
         // Draw current image to get pixel data
-        // Note: cgImage is from a flipped context, so it's already in normal coordinates
+        // The cgImage from a flipped context is in normal (bottom-left) coordinates
+        // We need to flip it when drawing to our normal-coordinate context
+        context2.saveGState()
+        context2.translateBy(x: 0, y: CGFloat(height))
+        context2.scaleBy(x: 1.0, y: -1.0)
         context2.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        context2.restoreGState()
         
-        // Convert Y coordinate from flipped (top-left origin) to normal (bottom-left origin)
-        // The canvas context is flipped, so point.y is in flipped coordinates (0 at top)
-        // But the image we're reading from is in normal coordinates (0 at bottom)
+        // The point.y is in top-left coordinates (from SwiftUI), but our pixel data
+        // is now in normal (bottom-left) coordinates after the flip above
+        // So we need to convert: y in top-left -> (height - 1 - y) in bottom-left
         let flippedY = height - 1 - y
         
         // Get the target color at the clicked point
@@ -1021,23 +1026,29 @@ struct CanvasView: View {
         let imageWidth = width
         let imageHeight = height
         
-        DispatchQueue.main.async { [weak self, weak layer] in
-            guard let self = self,
-                  let layer = layer,
+        DispatchQueue.main.async { [weak layer] in
+            guard let layer = layer,
                   let canvasContext = layer.canvas.context else {
                 free(pixelData)
                 return
             }
-            
+
             // Clear and redraw with filled image
-            // The context is flipped, so drawing the normal-coordinate image will work correctly
+            // The canvas context is flipped (top-left origin), but newCGImage is in normal coordinates
+            // We need to flip it when drawing to match the flipped context
             canvasContext.clear(CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
+            canvasContext.saveGState()
+            canvasContext.translateBy(x: 0, y: CGFloat(imageHeight))
+            canvasContext.scaleBy(x: 1.0, y: -1.0)
             canvasContext.draw(newCGImage, in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
-            
-            // Force canvas update after fill
-            self.state.canvasUpdateCounter += 1
-            self.state.saveState()
-            
+            canvasContext.restoreGState()
+
+            // Publish state changes on the main actor
+            Task { @MainActor in
+                state.canvasUpdateCounter += 1
+                state.saveState()
+            }
+
             free(pixelData)
         }
     }

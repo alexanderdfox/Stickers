@@ -65,7 +65,15 @@ class DrawingLayer: Identifiable, ObservableObject {
         if let cgImage = canvas.createImage() {
             let image = Image(cgImage, scale: 1.0, label: Text("Layer"))
             let size = CGSize(width: cgImage.width, height: cgImage.height)
+            
+            // The canvas context is flipped (top-left origin), so when we create a CGImage from it,
+            // the CGImage is in normal (bottom-left) coordinates. SwiftUI's GraphicsContext uses
+            // top-left origin, so we need to flip the image vertically when drawing.
+            context.saveGState()
+            context.translateBy(x: 0, y: size.height)
+            context.scaleBy(x: 1.0, y: -1.0)
             context.draw(image, in: CGRect(origin: .zero, size: size))
+            context.restoreGState()
         }
     }
 }
@@ -148,13 +156,11 @@ class Canvas {
         
         #if canImport(AppKit)
         let nsColor = NSColor(color)
-        guard let cgColor = nsColor.cgColor else { return }
-        context.setFillColor(cgColor)
+        context.setFillColor(nsColor.cgColor)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         #elseif canImport(UIKit)
         let uiColor = UIColor(color)
-        guard let cgColor = uiColor.cgColor else { return }
-        context.setFillColor(cgColor)
+        context.setFillColor(uiColor.cgColor)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         #endif
     }
@@ -180,7 +186,13 @@ class Canvas {
             // If source has no image, return empty canvas (already initialized with white background)
             return newCanvas
         }
+        // The context is flipped (top-left origin), but image is in normal (bottom-left) coordinates
+        // We need to flip the image when drawing to match the flipped context
+        newContext.saveGState()
+        newContext.translateBy(x: 0, y: CGFloat(height))
+        newContext.scaleBy(x: 1.0, y: -1.0)
         newContext.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        newContext.restoreGState()
         return newCanvas
     }
 }

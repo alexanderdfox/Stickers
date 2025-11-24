@@ -49,7 +49,7 @@ class SoundEffects {
         
         guard let engine = audioEngine else { return }
         
-        // Connect mainMixerNode to outputNode to ensure the engine has an output
+        // Connect main mixer to output with a valid format; it's safe to disconnect before reconnecting
         let outputNode = engine.outputNode
         var format = outputNode.inputFormat(forBus: 0)
         if format.channelCount == 0 || format.sampleRate == 0 {
@@ -58,11 +58,7 @@ class SoundEffects {
                 format = fallback
             }
         }
-        // Only disconnect if already connected to avoid errors
-        let existingConnections = engine.connections(from: engine.mainMixerNode, to: outputNode)
-        if !existingConnections.isEmpty {
-            engine.disconnectNodeOutput(engine.mainMixerNode)
-        }
+        engine.disconnectNodeOutput(engine.mainMixerNode)
         engine.connect(engine.mainMixerNode, to: outputNode, format: format)
 
         do {
@@ -118,10 +114,7 @@ class SoundEffects {
         let outFormat = outputNode.inputFormat(forBus: 0)
         if outFormat.channelCount == 0 || outFormat.sampleRate == 0 {
             if let fallback = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2) {
-                let existingConnections = engine.connections(from: engine.mainMixerNode, to: outputNode)
-                if !existingConnections.isEmpty {
-                    engine.disconnectNodeOutput(engine.mainMixerNode)
-                }
+                engine.disconnectNodeOutput(engine.mainMixerNode)
                 engine.connect(engine.mainMixerNode, to: outputNode, format: fallback)
             }
         }
@@ -137,12 +130,8 @@ class SoundEffects {
         let outputFormat = outputNode.inputFormat(forBus: 0)
         if outputFormat.channelCount == 0 || outputFormat.sampleRate == 0 {
             // Attempt to reconnect main mixer to output with a standard format
-            let fallbackFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)
-            if let fallbackFormat {
-                let existingConnections = engine.connections(from: engine.mainMixerNode, to: outputNode)
-                if !existingConnections.isEmpty {
-                    engine.disconnectNodeOutput(engine.mainMixerNode)
-                }
+            if let fallbackFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2) {
+                engine.disconnectNodeOutput(engine.mainMixerNode)
                 engine.connect(engine.mainMixerNode, to: outputNode, format: fallbackFormat)
             }
         }
@@ -165,12 +154,8 @@ class SoundEffects {
             // Clean up after playback
             DispatchQueue.main.async {
                 playerNode.stop()
-                // Check if node is still connected before disconnecting
-                let connections = engine.connections(from: playerNode, to: engine.mainMixerNode)
-                if !connections.isEmpty {
-                    engine.disconnectNodeOutput(playerNode)
-                }
-                // Check if node is still attached before detaching
+                // Safely disconnect and detach the node; these calls are safe even if already disconnected
+                engine.disconnectNodeOutput(playerNode)
                 if engine.attachedNodes.contains(playerNode) {
                     engine.detach(playerNode)
                 }
