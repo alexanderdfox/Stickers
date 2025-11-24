@@ -83,7 +83,10 @@ struct CanvasView: View {
                     
                     // Draw temporary shape preview while drawing
                     if isDrawing, let start = startPoint, let end = lastPoint {
-                        drawShapePreview(context: &context, start: start, end: end, in: size)
+                        // Only show preview for shape tools (not freehand tools)
+                        if [.line, .circle, .square, .triangle, .star, .arc, .selectCircle, .selectSquare].contains(state.currentTool) {
+                            drawShapePreview(context: &context, start: start, end: end, in: size)
+                        }
                     }
                 }
                 .drawingGroup() // Optimize rendering performance
@@ -201,13 +204,18 @@ struct CanvasView: View {
                         handleDraw(at: value.location, in: geometrySize)
                     }
                     .onEnded { value in
-                        let dx = value.location.x - value.startLocation.x
-                        let dy = value.location.y - value.startLocation.y
-                        let distance = sqrt(dx*dx + dy*dy)
-                        if distance < 2 {
-                            handleTap(at: value.location, in: geometrySize)
-                        } else {
+                        // For shape tools, always finish drawing (even for small movements)
+                        if [.line, .circle, .square, .triangle, .star, .arc, .selectCircle, .selectSquare].contains(state.currentTool) {
                             finishDrawing()
+                        } else {
+                            let dx = value.location.x - value.startLocation.x
+                            let dy = value.location.y - value.startLocation.y
+                            let distance = sqrt(dx*dx + dy*dy)
+                            if distance < 2 {
+                                handleTap(at: value.location, in: geometrySize)
+                            } else {
+                                finishDrawing()
+                            }
                         }
                     }
             )
@@ -220,7 +228,8 @@ struct CanvasView: View {
     }
     
     private func snapPoint(_ point: CGPoint) -> CGPoint {
-        guard enableSnapping, gridSize > 0 else { return point }
+        guard enableSnapping, state.showGrid, state.gridSize > 0 else { return point }
+        let gridSize = state.gridSize
         let x = (point.x / gridSize).rounded() * gridSize
         let y = (point.y / gridSize).rounded() * gridSize
         return CGPoint(x: x, y: y)
@@ -325,14 +334,28 @@ struct CanvasView: View {
             } else {
                 lastPoint = point
             }
+        case .line, .circle, .square, .triangle, .star, .arc, .selectCircle, .selectSquare:
+            // For shape tools, just update lastPoint for preview
+            // The actual drawing happens in finishDrawing()
+            lastPoint = point
+            state.canvasUpdateCounter += 1 // Force preview update
         default:
             break
         }
     }
     
     private func finishDrawing() {
-        guard isDrawing, let start = startPoint, let end = lastPoint,
-              let layer = state.activeLayer else {
+        guard isDrawing, let layer = state.activeLayer else {
+            isDrawing = false
+            startPoint = nil
+            lastPoint = nil
+            return
+        }
+        
+        // Ensure we have valid start and end points
+        guard let start = startPoint, let end = lastPoint,
+              start.x.isFinite, start.y.isFinite,
+              end.x.isFinite, end.y.isFinite else {
             isDrawing = false
             startPoint = nil
             lastPoint = nil
@@ -348,8 +371,17 @@ struct CanvasView: View {
             e = se.1
         }
         
+        // Validate snapped points
+        guard s.x.isFinite, s.y.isFinite, e.x.isFinite, e.y.isFinite else {
+            isDrawing = false
+            startPoint = nil
+            lastPoint = nil
+            return
+        }
+        
         switch state.currentTool {
         case .line:
+            // Draw line even if start and end are very close
             drawLine(from: s, to: e, on: layer)
             AppPreferences.shared.playSound(.shape)
         case .circle:
@@ -1275,7 +1307,7 @@ struct CanvasView: View {
         let gridColor = Color(uiColor: .separator).opacity(0.3)
         #endif
         
-        context.strokeStyle = StrokeStyle(lineWidth: 0.5, lineCap: .round, lineJoin: .round)
+        let strokeStyle = StrokeStyle(lineWidth: 0.5, lineCap: .round, lineJoin: .round)
         context.opacity = 0.5
         
         // Draw vertical lines
@@ -1285,7 +1317,7 @@ struct CanvasView: View {
                 path.move(to: CGPoint(x: x, y: 0))
                 path.addLine(to: CGPoint(x: x, y: size.height))
             }
-            context.stroke(path, with: .color(gridColor))
+            context.stroke(path, with: .color(gridColor), style: strokeStyle)
             x += gridSize
         }
         
@@ -1296,7 +1328,7 @@ struct CanvasView: View {
                 path.move(to: CGPoint(x: 0, y: y))
                 path.addLine(to: CGPoint(x: size.width, y: y))
             }
-            context.stroke(path, with: .color(gridColor))
+            context.stroke(path, with: .color(gridColor), style: strokeStyle)
             y += gridSize
         }
         
@@ -1364,7 +1396,135 @@ struct CanvasView: View {
         return Color(hue: hue, saturation: 1.0, brightness: 1.0)
     }
     
-    // Fill pattern implementation
+    // MARK: - Core Graphics Pattern Implementation
+    
+    /// Pattern info structure for Core Graphics pattern callbacks
+    private struct PatternInfo {
+        let pattern: FillPattern
+        let primaryColor: CGColor
+        let secondaryColor: CGColor
+        let lineWidth: CGFloat
+        let patternSize: CGFloat
+    }
+    
+    /// Create a Core Graphics pattern for the specified fill pattern type
+    private func createCGPattern(for pattern: FillPattern, size: CGFloat = 20) -> CGPattern? {
+        let patternBounds = CGRect(x: 0, y: 0, width: size, height: size)
+        let matrix = CGAffineTransform.identity
+        
+        // Get colors
+        let primaryColor = (state.rainbowMode ? getRainbowColor() : state.currentColor).cgColor ?? CGColor(red: 0, green: 0, blue: 0, alpha: 1)
+        let secondaryColor = state.secondaryColor.cgColor ?? CGColor(red: 1, green: 1, blue: 1, alpha: 1)
+        let lineWidth = CGFloat(state.brushSize) * 0.5
+        
+        // Create pattern info
+        let info = PatternInfo(
+            pattern: pattern,
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            lineWidth: lineWidth,
+            patternSize: size
+        )
+        
+        // Allocate memory for pattern info
+        let infoPtr = UnsafeMutablePointer<PatternInfo>.allocate(capacity: 1)
+        infoPtr.initialize(to: info)
+        
+        // Define pattern callbacks
+        var callbacks = CGPatternCallbacks(
+            version: 0,
+            drawPattern: { (info, context) in
+                guard let patternInfo = info?.assumingMemoryBound(to: PatternInfo.self).pointee else { return }
+                
+                context.saveGState()
+                let bounds = CGRect(x: 0, y: 0, width: patternInfo.patternSize, height: patternInfo.patternSize)
+                
+                // Draw pattern based on type
+                switch patternInfo.pattern {
+                case .solid:
+                    context.setFillColor(patternInfo.primaryColor)
+                    context.fill(bounds)
+                case .transparent:
+                    // Transparent - do nothing
+                    break
+                case .horizontal:
+                    context.setStrokeColor(patternInfo.primaryColor)
+                    context.setLineWidth(patternInfo.lineWidth)
+                    context.move(to: CGPoint(x: 0, y: patternInfo.patternSize / 2))
+                    context.addLine(to: CGPoint(x: patternInfo.patternSize, y: patternInfo.patternSize / 2))
+                    context.strokePath()
+                case .vertical:
+                    context.setStrokeColor(patternInfo.primaryColor)
+                    context.setLineWidth(patternInfo.lineWidth)
+                    context.move(to: CGPoint(x: patternInfo.patternSize / 2, y: 0))
+                    context.addLine(to: CGPoint(x: patternInfo.patternSize / 2, y: patternInfo.patternSize))
+                    context.strokePath()
+                case .diagonal:
+                    context.setStrokeColor(patternInfo.primaryColor)
+                    context.setLineWidth(patternInfo.lineWidth)
+                    context.move(to: CGPoint(x: 0, y: 0))
+                    context.addLine(to: CGPoint(x: patternInfo.patternSize, y: patternInfo.patternSize))
+                    context.strokePath()
+                case .checkerboard:
+                    // Draw checkerboard - alternate squares
+                    context.setFillColor(patternInfo.primaryColor)
+                    let halfSize = patternInfo.patternSize / 2
+                    context.fill(CGRect(x: 0, y: 0, width: halfSize, height: halfSize))
+                    context.fill(CGRect(x: halfSize, y: halfSize, width: halfSize, height: halfSize))
+                    if patternInfo.secondaryColor.alpha > 0 {
+                        context.setFillColor(patternInfo.secondaryColor)
+                        context.fill(CGRect(x: halfSize, y: 0, width: halfSize, height: halfSize))
+                        context.fill(CGRect(x: 0, y: halfSize, width: halfSize, height: halfSize))
+                    }
+                case .dots:
+                    context.setFillColor(patternInfo.primaryColor)
+                    let dotSize: CGFloat = 3
+                    let centerX = patternInfo.patternSize / 2
+                    let centerY = patternInfo.patternSize / 2
+                    context.fillEllipse(in: CGRect(
+                        x: centerX - dotSize / 2,
+                        y: centerY - dotSize / 2,
+                        width: dotSize,
+                        height: dotSize
+                    ))
+                }
+                
+                context.restoreGState()
+            },
+            releaseInfo: { (info) in
+                guard let patternInfo = info?.assumingMemoryBound(to: PatternInfo.self) else { return }
+                patternInfo.deinitialize(count: 1)
+                patternInfo.deallocate()
+            }
+        )
+        
+        // Create color space and pattern
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let patternSpace = CGColorSpace(patternBaseSpace: colorSpace) else {
+            infoPtr.deinitialize(count: 1)
+            infoPtr.deallocate()
+            return nil
+        }
+        
+        guard let pattern = CGPattern(
+            info: infoPtr,
+            bounds: patternBounds,
+            matrix: matrix,
+            xStep: size,
+            yStep: size,
+            tiling: .constantSpacing,
+            isColored: true,
+            callbacks: &callbacks
+        ) else {
+            infoPtr.deinitialize(count: 1)
+            infoPtr.deallocate()
+            return nil
+        }
+        
+        return pattern
+    }
+    
+    // Fill pattern implementation using Core Graphics patterns
     private func fillShape(with pattern: FillPattern, in rect: CGRect, using context: CGContext, completion: @escaping (CGPath) -> Void) {
         // Validate rect
         guard rect.width > 0, rect.height > 0,
@@ -1375,23 +1535,48 @@ struct CanvasView: View {
         
         context.saveGState()
         
-        // First fill background if needed
-        if let bgColor = state.secondaryColor.cgColor {
-            context.setFillColor(bgColor)
-            let bgPath = CGPath(rect: rect, transform: nil)
-            completion(bgPath)
-        }
+        // Create clipping path
+        let path = CGPath(rect: rect, transform: nil)
+        context.addPath(path)
+        context.clip()
         
-        // Then draw pattern
+        // Fill with pattern or solid color
         switch pattern {
         case .solid:
             if let cgColor = state.currentColor.cgColor {
                 context.setFillColor(cgColor)
-                let path = CGPath(rect: rect, transform: nil)
-                completion(path)
+                context.fill(rect)
             }
         case .transparent:
+            // Transparent - do nothing
             break
+        case .horizontal, .vertical, .diagonal, .checkerboard, .dots:
+            // Use Core Graphics pattern
+            if let cgPattern = createCGPattern(for: pattern, size: 20) {
+                let colorSpace = CGColorSpaceCreateDeviceRGB()
+                guard let patternSpace = CGColorSpace(patternBaseSpace: colorSpace) else {
+                    // Fallback to manual drawing
+                    drawPatternManually(pattern: pattern, in: rect, using: context)
+                    context.restoreGState()
+                    return
+                }
+                
+                var alpha: CGFloat = 1.0
+                context.setFillColorSpace(patternSpace)
+                context.setFillPattern(cgPattern, colorComponents: &alpha)
+                context.fill(rect)
+            } else {
+                // Fallback to manual drawing if pattern creation fails
+                drawPatternManually(pattern: pattern, in: rect, using: context)
+            }
+        }
+        
+        context.restoreGState()
+    }
+    
+    /// Fallback manual pattern drawing (used if Core Graphics pattern fails)
+    private func drawPatternManually(pattern: FillPattern, in rect: CGRect, using context: CGContext) {
+        switch pattern {
         case .horizontal:
             drawHorizontalLinesPattern(in: rect, using: context)
         case .vertical:
@@ -1402,9 +1587,9 @@ struct CanvasView: View {
             drawCheckerboardPattern(in: rect, using: context)
         case .dots:
             drawDotsPattern(in: rect, using: context)
+        default:
+            break
         }
-        
-        context.restoreGState()
     }
     
     private func drawHorizontalLinesPattern(in rect: CGRect, using context: CGContext) {
@@ -1547,10 +1732,11 @@ struct CanvasView: View {
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite,
               size.width > 0, size.height > 0 else { return }
         
-        let startPoint = convertPoint(start, in: size)
-        let endPoint = convertPoint(end, in: size)
+        // Points are already in canvas coordinates, no need to convert
+        let startPoint = start
+        let endPoint = end
         
-        // Validate converted points
+        // Validate points
         guard startPoint.x.isFinite, startPoint.y.isFinite,
               endPoint.x.isFinite, endPoint.y.isFinite else { return }
         
@@ -1563,12 +1749,70 @@ struct CanvasView: View {
         let sp = snapped.0
         let ep = snapped.1
         
+        let previewColor = state.rainbowMode ? getRainbowColor() : state.currentColor
+        let strokeStyle = StrokeStyle(lineWidth: max(1.0, CGFloat(state.brushSize)), lineCap: .round, lineJoin: .round)
+        
         switch state.currentTool {
         case .line:
             context.stroke(Path { path in
                 path.move(to: sp)
                 path.addLine(to: ep)
-            }, with: .color(state.currentColor.opacity(0.5)), lineWidth: max(1.0, CGFloat(state.brushSize)))
+            }, with: .color(previewColor.opacity(0.5)), style: strokeStyle)
+        case .circle:
+            let rect = CGRect(
+                x: min(sp.x, ep.x),
+                y: min(sp.y, ep.y),
+                width: abs(ep.x - sp.x),
+                height: abs(ep.y - sp.y)
+            )
+            context.stroke(Path(ellipseIn: rect), with: .color(previewColor.opacity(0.5)), style: strokeStyle)
+        case .square:
+            let rect = CGRect(
+                x: min(sp.x, ep.x),
+                y: min(sp.y, ep.y),
+                width: abs(ep.x - sp.x),
+                height: abs(ep.y - sp.y)
+            )
+            context.stroke(Path(rect), with: .color(previewColor.opacity(0.5)), style: strokeStyle)
+        case .triangle:
+            let width = abs(ep.x - sp.x)
+            let height = abs(ep.y - sp.y)
+            let centerX = (sp.x + ep.x) / 2
+            let topY = min(sp.y, ep.y)
+            let bottomY = max(sp.y, ep.y)
+            
+            let path = Path { path in
+                path.move(to: CGPoint(x: centerX, y: topY))
+                path.addLine(to: CGPoint(x: centerX - width/2, y: bottomY))
+                path.addLine(to: CGPoint(x: centerX + width/2, y: bottomY))
+                path.closeSubpath()
+            }
+            context.stroke(path, with: .color(previewColor.opacity(0.5)), style: strokeStyle)
+        case .star:
+            let width = abs(ep.x - sp.x)
+            let height = abs(ep.y - sp.y)
+            let centerX = (sp.x + ep.x) / 2
+            let centerY = (sp.y + ep.y) / 2
+            let radius = max(1, min(width, height) / 2)
+            
+            let path = createStarPath(center: CGPoint(x: centerX, y: centerY), radius: radius, points: 5)
+            context.stroke(Path(path), with: .color(previewColor.opacity(0.5)), style: strokeStyle)
+        case .arc:
+            let centerX = (sp.x + ep.x) / 2
+            let centerY = (sp.y + ep.y) / 2
+            let radius = max(1, sqrt(pow(ep.x - sp.x, 2) + pow(ep.y - sp.y, 2)) / 2)
+            
+            let startAngle = atan2(sp.y - centerY, sp.x - centerX)
+            let endAngle = startAngle + (state.arcSweepAngle * .pi / 180)
+            
+            // Create arc path using CGPath and convert to SwiftUI Path
+            let cgPath = CGMutablePath()
+            cgPath.addArc(center: CGPoint(x: centerX, y: centerY),
+                         radius: radius,
+                         startAngle: startAngle,
+                         endAngle: endAngle,
+                         clockwise: false)
+            context.stroke(Path(cgPath), with: .color(previewColor.opacity(0.5)), style: strokeStyle)
         default:
             break
         }

@@ -1,6 +1,9 @@
 # 🎨 Stickers
 
-A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patterns, and unleash your creativity! Built with HTML5 Canvas and vanilla JavaScript.
+A fun, Kid Pix-inspired drawing app where you can draw with emojis, create patterns, and unleash your creativity! Available in two versions:
+
+- **Web Version** - Built with HTML5 Canvas and vanilla JavaScript (see below)
+- **Native App** - Swift/SwiftUI app for macOS and iOS (see [Swift Version](#-swift-native-app) section)
 
 ## 🌟 Highlights
 
@@ -475,10 +478,18 @@ All shortcuts work globally except when typing in input fields.
 
 ## 🛠️ Built With
 
+### Web Version
 - **HTML5 Canvas** - Drawing surface
 - **Vanilla JavaScript** - No frameworks!
 - **CSS3** - Modern styling with gradients and animations
 - **Web Audio API** - Sound effects
+
+### Swift Native App
+- **SwiftUI** - Modern declarative UI framework
+- **Core Graphics** - High-performance drawing engine
+- **AVAudioEngine** - Native sound synthesis
+- **Combine** - Reactive state management
+- **Native Patterns** - Core Graphics pattern rendering for efficient tiling
 
 ## 🎮 Kid Pix Inspiration
 
@@ -519,6 +530,86 @@ This project is inspired by the classic Kid Pix drawing program, featuring:
 - **Accessibility** - Large touch targets (44-48px), clear visual feedback, help modal
 - **No framework bloat** - Pure vanilla JavaScript for speed
 - **Offline ready** - Works without internet after first load
+
+## 🍎 Swift Native App
+
+### Overview
+The Swift version of Stickers is a native macOS and iOS application built with SwiftUI and Core Graphics, providing a high-performance drawing experience with native platform integration.
+
+### Key Features
+
+#### 🎨 Drawing Tools
+- **Pencil** - Smooth freehand drawing with pressure sensitivity
+- **Line** - Perfect straight lines with live preview
+- **Eraser** - Proper pixel erasing using destinationOut blend mode
+- **Fill** - Advanced flood fill with pattern support
+- **Spray** - Realistic spray paint effect with particle distribution
+- **Shapes** - Circle, Square, Triangle, Star, Arc with pattern fills
+- **Stamp** - Emoji and text stamps with rotation support
+
+#### 📐 Grid & Ruler System
+- **Toggleable Grid** - Adjustable spacing (5-100 pixels)
+- **Ruler Display** - Horizontal and vertical rulers with tick marks
+- **Grid Snapping** - Optional snapping for precise alignment
+- **Visual Guides** - Subtle grid lines for better precision
+
+#### 🎭 Pattern Rendering
+- **Core Graphics Patterns** - Native CGPattern API for efficient tiling
+- **Pattern Types** - Horizontal, vertical, diagonal lines, checkerboard, dots
+- **Automatic Tiling** - Seamless pattern repetition across any size
+- **Performance Optimized** - Hardware-accelerated pattern rendering
+
+#### 🔊 Audio System
+- **AVAudioEngine** - Native audio synthesis
+- **Sound Effects** - Click, draw, spray, eraser, fill, stamp, shape sounds
+- **Error Recovery** - Robust fallback system for audio failures
+- **Memory Safe** - Proper buffer management and cleanup
+
+#### 🔒 Security Features
+- **Input Validation** - Comprehensive validation for all user inputs
+- **Memory Safety** - Integer overflow checks, bounds checking
+- **File Security** - Path traversal prevention, file size limits
+- **DoS Protection** - Flood fill limits, resource exhaustion prevention
+- **Coordinate Validation** - NaN, infinity, and bounds checking
+
+#### 📱 Platform Support
+- **macOS** - Full native support with NSColor, NSImage, NSSavePanel
+- **iOS** - Touch-optimized with UIKit integration
+- **Cross-Platform** - Shared codebase with platform-specific optimizations
+
+### Technical Highlights
+
+#### Performance
+- **Hardware Acceleration** - Core Graphics rendering with GPU support
+- **Efficient Patterns** - CGPattern API for optimal pattern tiling
+- **Memory Management** - Proper cleanup and resource management
+- **Thread Safety** - Main actor isolation for UI updates
+
+#### Code Quality
+- **Type Safety** - Strong typing with Swift's type system
+- **Error Handling** - Comprehensive guard statements and validation
+- **Security** - Input sanitization, bounds checking, resource limits
+- **Documentation** - Clear comments and structured code
+
+### Getting Started (Swift Version)
+
+1. Open `swift/Stickers/Stickers.xcodeproj` in Xcode
+2. Select your target platform (macOS or iOS)
+3. Build and run (⌘R)
+4. Start drawing immediately!
+
+### Swift Version Features
+
+- ✅ **Native Performance** - Hardware-accelerated rendering
+- ✅ **Core Graphics Patterns** - Efficient pattern tiling system
+- ✅ **Grid & Ruler** - Professional drawing guides
+- ✅ **Security Hardened** - Comprehensive input validation
+- ✅ **Memory Safe** - Proper resource management
+- ✅ **Platform Native** - macOS and iOS optimized
+- ✅ **Sound Effects** - AVAudioEngine integration
+- ✅ **All Drawing Tools** - Complete toolset with previews
+
+See [swift/IMPROVEMENTS.md](swift/IMPROVEMENTS.md) for detailed improvements and Apple HIG compliance.
 
 ## 📄 License
 
