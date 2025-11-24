@@ -69,11 +69,14 @@ class DrawingLayer: Identifiable, ObservableObject {
             // The canvas context is flipped (top-left origin), so when we create a CGImage from it,
             // the CGImage is in normal (bottom-left) coordinates. SwiftUI's GraphicsContext uses
             // top-left origin, so we need to flip the image vertically when drawing.
-            context.saveGState()
+            // Since SwiftUI GraphicsContext doesn't have saveGState/restoreGState, we manually
+            // apply and reverse the transform.
             context.translateBy(x: 0, y: size.height)
             context.scaleBy(x: 1.0, y: -1.0)
             context.draw(image, in: CGRect(origin: .zero, size: size))
-            context.restoreGState()
+            // Reverse the transform
+            context.scaleBy(x: 1.0, y: -1.0)
+            context.translateBy(x: 0, y: -size.height)
         }
     }
 }

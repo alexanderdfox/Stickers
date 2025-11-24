@@ -400,8 +400,25 @@ struct CanvasView: View {
         context.setLineJoin(.round)
         
         if state.currentTool == .eraser {
-            context.setBlendMode(.clear)
+            // Use destinationOut blend mode for proper erasing
+            // This removes the destination pixels where the path is drawn
+            context.setBlendMode(.destinationOut)
+            // Set a fully opaque color - the blend mode will remove pixels regardless of color
+            // We use white with full alpha so the blend mode works correctly
+            context.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+            // Make sure the line width is appropriate for erasing
+            context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
+        } else if state.currentTool == .spray {
+            // Spray tool uses a special spray effect
+            context.setBlendMode(.normal)
+            let color = state.rainbowMode ? getRainbowColor() : state.currentColor
+            if let cgColor = color.cgColor {
+                context.setStrokeColor(cgColor)
+            }
+            drawSprayEffect(from: start, to: end, on: layer)
+            return // Early return since spray handles its own drawing
         } else {
+            // Normal drawing tools
             context.setBlendMode(.normal)
             let color = state.rainbowMode ? getRainbowColor() : state.currentColor
             if let cgColor = color.cgColor {
@@ -413,11 +430,48 @@ struct CanvasView: View {
         context.addLine(to: end)
         context.strokePath()
         
-        if state.sparkleMode {
+        if state.sparkleMode && state.currentTool != .eraser {
             addSparkles(at: end, on: layer)
         }
         
         // Note: Update counter is handled in handleDraw for better performance
+    }
+    
+    // Spray effect drawing
+    private func drawSprayEffect(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
+        guard let context = layer.canvas.context else { return }
+        
+        let color = state.rainbowMode ? getRainbowColor() : state.currentColor
+        guard let cgColor = color.cgColor else { return }
+        
+        let brushSize = CGFloat(state.brushSize)
+        let distance = sqrt(pow(end.x - start.x, 2) + pow(end.y - start.y, 2))
+        let steps = max(1, Int(distance / (brushSize * 0.5)))
+        
+        context.setBlendMode(.normal)
+        context.setFillColor(cgColor)
+        
+        for i in 0..<steps {
+            let t = CGFloat(i) / CGFloat(steps)
+            let x = start.x + (end.x - start.x) * t
+            let y = start.y + (end.y - start.y) * t
+            
+            // Draw multiple random dots for spray effect
+            let dotCount = Int(brushSize / 2)
+            for _ in 0..<dotCount {
+                let offsetX = CGFloat.random(in: -brushSize...brushSize)
+                let offsetY = CGFloat.random(in: -brushSize...brushSize)
+                let dotSize = CGFloat.random(in: 1...brushSize * 0.3)
+                
+                let dotRect = CGRect(
+                    x: x + offsetX - dotSize/2,
+                    y: y + offsetY - dotSize/2,
+                    width: dotSize,
+                    height: dotSize
+                )
+                context.fillEllipse(in: dotRect)
+            }
+        }
     }
     
     private func drawLine(from start: CGPoint, to end: CGPoint, on layer: DrawingLayer) {
@@ -426,6 +480,7 @@ struct CanvasView: View {
         // Validate coordinates
         guard start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         
+        context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         context.setLineCap(.round)
         
@@ -462,6 +517,7 @@ struct CanvasView: View {
         // Skip if rect is too small
         guard rect.width > 0.5 || rect.height > 0.5 else { return }
         
+        context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill pattern
@@ -504,6 +560,7 @@ struct CanvasView: View {
         // Skip if rect is too small
         guard rect.width > 0.5 || rect.height > 0.5 else { return }
         
+        context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill
@@ -552,6 +609,7 @@ struct CanvasView: View {
         path.addLine(to: CGPoint(x: centerX + width/2, y: bottomY))
         path.closeSubpath()
         
+        context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill
@@ -597,6 +655,7 @@ struct CanvasView: View {
         
         let path = createStarPath(center: CGPoint(x: centerX, y: centerY), radius: radius, points: 5)
         
+        context.setBlendMode(.normal)
         context.setLineWidth(max(0.5, CGFloat(state.brushSize)))
         
         // Fill
@@ -644,6 +703,7 @@ struct CanvasView: View {
                    endAngle: endAngle,
                    clockwise: false)
         
+        context.setBlendMode(.normal)
         let color = state.rainbowMode ? getRainbowColor() : state.currentColor
         if let cgColor = color.cgColor {
             context.setStrokeColor(cgColor)
