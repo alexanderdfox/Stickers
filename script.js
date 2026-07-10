@@ -3240,5 +3240,32 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-console.log('🎨 Stickers loaded! Have fun drawing!');
+function saveStickerToDevice() {
+  // 1. Target the sticker image or canvas from your app.
+  // Replace 'img.sticker-preview' with whatever class/ID your app uses to show the final sticker.
+  const stickerElement = document.querySelector('img.sticker-preview') || document.querySelector('canvas'); 
+  
+  if (!stickerElement) {
+    alert("No sticker found to save!");
+    return;
+  }
 
+  let imageUrl = '';
+
+  // 2. Extract the source image data depending on if it's an <img> or <canvas>
+  if (stickerElement.tagName === 'CANVAS') {
+    imageUrl = stickerElement.toDataURL('image/png');
+  } else {
+    imageUrl = stickerElement.src;
+  }
+
+  // 3. Trigger the direct download/save action
+  const downloadLink = document.createElement('a');
+  downloadLink.href = imageUrl;
+  downloadLink.download = 'my-sticker.png'; // Ensures it saves as a transparent PNG sticker
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+}
+
+console.log('🎨 Stickers loaded! Have fun drawing!');
