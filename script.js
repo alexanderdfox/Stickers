@@ -3240,47 +3240,106 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-function saveStickerToDevice() {
+async function saveStickerToDevice() {
     initAudio();
     playSound('save');
     
-    const canvasToSave = document.getElementById('drawing-canvas'); // or merge layers if needed
-    const exportScale = parseFloat(document.getElementById('export-size-selector')?.value) || 1;
-    
-    // Create a temporary high-res canvas if exporting scaled
-    let sourceCanvas = canvasToSave;
-    if (exportScale !== 1) {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvasToSave.width * exportScale;
-        tempCanvas.height = canvasToSave.height * exportScale;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.imageSmoothingEnabled = true;
-        tempCtx.drawImage(canvasToSave, 0, 0, tempCanvas.width, tempCanvas.height);
-        sourceCanvas = tempCanvas;
+    if (layers.length === 0) {
+        alert("No layers to save!");
+        return;
     }
     
-    // Use toBlob for better iOS compatibility
-    sourceCanvas.toBlob((blob) => {
-        if (!blob) {
-            alert("Failed to generate image. Try again.");
-            return;
+    const zip = new JSZip();
+    const layerFolder = zip.folder("layers");
+    const mergedFolder = zip.folder("merged");
+    
+    let exportScale = 1;
+    const scaleSelect = document.getElementById('export-size-selector');
+    if (scaleSelect) {
+        exportScale = parseFloat(scaleSelect.value) || 1;
+    }
+    
+    const toast = showToast ? showToast : (msg) => console.log(msg);
+    toast('📦 Preparing ZIP with layers...');
+    
+    // 1. Save each individual layer
+    for (let i = 0; i < layers.length; i++) {
+        const layer = layers[i];
+        if (!layer.visible) continue; // optional: skip hidden
+        
+        let sourceCanvas = layer.canvas;
+        
+        // Apply export scale if >1
+        if (exportScale !== 1) {
+            const scaled = document.createElement('canvas');
+            scaled.width = layer.canvas.width * exportScale;
+            scaled.height = layer.canvas.height * exportScale;
+            const sCtx = scaled.getContext('2d');
+            sCtx.imageSmoothingEnabled = true;
+            sCtx.drawImage(layer.canvas, 0, 0, scaled.width, scaled.height);
+            sourceCanvas = scaled;
         }
         
-        const url = URL.createObjectURL(blob);
+        const layerName = `${layer.name.replace(/[^a-z0-9]/gi, '_') || `layer_${i+1}`}.png`;
+        
+        // Use toBlob for reliability
+        await new Promise(resolve => {
+            sourceCanvas.toBlob(blob => {
+                if (blob) {
+                    layerFolder.file(layerName, blob);
+                }
+                resolve();
+            }, 'image/png', 1.0);
+        });
+    }
+    
+    // 2. Optional: Add a merged (composite) version
+    const mergedCanvas = document.createElement('canvas');
+    mergedCanvas.width = canvas.width * exportScale;
+    mergedCanvas.height = canvas.height * exportScale;
+    const mCtx = mergedCanvas.getContext('2d');
+    
+    // Render visible layers bottom-to-top
+    for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (layer.visible) {
+            mCtx.save();
+            mCtx.globalAlpha = layer.opacity;
+            mCtx.drawImage(layer.canvas, 0, 0, mergedCanvas.width, mergedCanvas.height);
+            mCtx.restore();
+        }
+    }
+    
+    await new Promise(resolve => {
+        mergedCanvas.toBlob(blob => {
+            if (blob) mergedFolder.file('merged_full.png', blob);
+            resolve();
+        }, 'image/png', 1.0);
+    });
+    
+    // 3. Generate and download ZIP
+    try {
+        const zipBlob = await zip.generateAsync({
+            type: "blob",
+            compression: "DEFLATE",
+            compressionOptions: { level: 6 }
+        });
+        
+        const url = URL.createObjectURL(zipBlob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `sticker-${new Date().toISOString().slice(0,10)}.png`;
+        link.download = `stickers_project_${new Date().toISOString().slice(0,10)}.zip`;
         
-        // iOS/Safari quirks handling
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         
-        // Cleanup
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        
-        showToast('✅ Image saved! Check Photos or Files app.');
-    }, 'image/png', 1.0); // High quality PNG
+        toast('✅ ZIP downloaded! (Contains individual layers + merged)');
+    } catch (err) {
+        console.error(err);
+        alert("ZIP generation failed. Try a smaller canvas or fewer layers.");
+    }
 }
 
 console.log('🎨 Stickers loaded! Have fun drawing!');
