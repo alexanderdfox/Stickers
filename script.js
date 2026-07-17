@@ -3241,31 +3241,46 @@ document.addEventListener('keydown', (e) => {
 });
 
 function saveStickerToDevice() {
-  // 1. Target the sticker image or canvas from your app.
-  // Replace 'img.sticker-preview' with whatever class/ID your app uses to show the final sticker.
-  const stickerElement = document.querySelector('img.sticker-preview') || document.querySelector('canvas'); 
-  
-  if (!stickerElement) {
-    alert("No sticker found to save!");
-    return;
-  }
-
-  let imageUrl = '';
-
-  // 2. Extract the source image data depending on if it's an <img> or <canvas>
-  if (stickerElement.tagName === 'CANVAS') {
-    imageUrl = stickerElement.toDataURL('image/png');
-  } else {
-    imageUrl = stickerElement.src;
-  }
-
-  // 3. Trigger the direct download/save action
-  const downloadLink = document.createElement('a');
-  downloadLink.href = imageUrl;
-  downloadLink.download = 'my-sticker.png'; // Ensures it saves as a transparent PNG sticker
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  document.body.removeChild(downloadLink);
+    initAudio();
+    playSound('save');
+    
+    const canvasToSave = document.getElementById('drawing-canvas'); // or merge layers if needed
+    const exportScale = parseFloat(document.getElementById('export-size-selector')?.value) || 1;
+    
+    // Create a temporary high-res canvas if exporting scaled
+    let sourceCanvas = canvasToSave;
+    if (exportScale !== 1) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasToSave.width * exportScale;
+        tempCanvas.height = canvasToSave.height * exportScale;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.imageSmoothingEnabled = true;
+        tempCtx.drawImage(canvasToSave, 0, 0, tempCanvas.width, tempCanvas.height);
+        sourceCanvas = tempCanvas;
+    }
+    
+    // Use toBlob for better iOS compatibility
+    sourceCanvas.toBlob((blob) => {
+        if (!blob) {
+            alert("Failed to generate image. Try again.");
+            return;
+        }
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `sticker-${new Date().toISOString().slice(0,10)}.png`;
+        
+        // iOS/Safari quirks handling
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Cleanup
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        
+        showToast('✅ Image saved! Check Photos or Files app.');
+    }, 'image/png', 1.0); // High quality PNG
 }
 
 console.log('🎨 Stickers loaded! Have fun drawing!');
